@@ -5,15 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mega Poop 3D - Bo Kiet Vi Dai</title>
     <style>
-        /* Màu nền tối để làm nổi bật tác phẩm màu nâu */
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { overflow: hidden; background-color: #111111; font-family: sans-serif; }
+        body { overflow: hidden; background-color: #050505; font-family: sans-serif; }
         #webcam { display: none; }
         #loading {
             position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             color: #d2b48c; font-size: 18px; letter-spacing: 2px;
             pointer-events: none; z-index: 10; font-weight: bold;
+            transition: opacity 0.5s;
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -22,145 +22,112 @@
 </head>
 <body>
 
-    <div id="loading">ĐANG TẠO BÃI CỨT TO CHÀ BÁ...</div>
+    <div id="loading">ĐANG HIỂN THỊ BÃI CỨT EMOJI...</div>
     <video id="webcam" playsinline></video>
 
     <script>
-        // --- 1. SETUP SCENE (Giữ nguyên) ---
+        // 1. SCENE SETUP
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-        // Đưa camera lùi xa một chút để thấy trọn vẹn đống phân to
-        camera.position.z = 45; 
+        camera.position.z = 35;
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.body.appendChild(renderer.domElement);
 
-        // --- 2. TẠO HÌNH BÃI CỨT 3D TO, CUỘN TRÒN (Phần sửa chính) ---
-        // Số lượng hạt lớn để đảm bảo độ mịn và to
-        const particleCount = 10000; 
-        const geometry = new THREE.BufferGeometry();
-        const positions = new Float32Array(particleCount * 3);
-        const basePositions = new Float32Array(particleCount * 3);
-        const randomDirs = new Float32Array(particleCount * 3);
+        // 2. TẠO TẤM BẢNG VẼ BÃI CỨT EMOJI (CANVAS)
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
 
-        for (let i = 0; i < particleCount; i++) {
-            // TẠO CẤU TRÚC XOẮN ỐC NÉN DỌC (CÔNG THỨC MỚI)
-            let h = Math.random(); // Độ cao từ 0 (đáy) đến 1 (đỉnh)
-            let radius = (1 - h) * 15 + 1; // Đáy to đỉnh nhỏ (Phóng to radius)
-            let angle = h * Math.PI * 10 + (Math.random() * 0.5); // Xoắn ốc 5 vòng
+        function drawPoopWithUserImage(userImg = null) {
+            ctx.clearRect(0, 0, 512, 512);
 
-            // Tạo các nếp cuộn tròn của bãi phân
-            let bump = Math.sin(h * Math.PI * 6) * 1.5;
-            radius += bump;
+            // --- VẼ THÂN BÃI CỨT (MÀU NÂU NỎN NÀ 3 TẦNG) ---
+            ctx.fillStyle = '#8B4513';
+            ctx.strokeStyle = '#5C2E0B';
+            ctx.lineWidth = 10;
 
-            let x = Math.cos(angle) * radius;
-            let z = Math.sin(angle) * radius;
-            let y = (h - 0.5) * 20; // Phóng to chiều cao (h cũ là 16)
-
-            // Mắt chóp trên đỉnh bãi phân
-            if (h > 0.85) {
-                let topH = (h - 0.85) / 0.15;
-                x *= (1 - topH);
-                z *= (1 - topH);
-            }
-
-            basePositions[i * 3]     = x;
-            basePositions[i * 3 + 1] = y;
-            basePositions[i * 3 + 2] = z;
-
-            positions[i * 3]     = x;
-            positions[i * 3 + 1] = y;
-            positions[i * 3 + 2] = z;
-
-            // Vectơ hướng văng ngẫu nhiên khi xòe bàn tay (Giữ nguyên)
-            let theta = Math.random() * Math.PI * 2;
-            let phi = Math.acos(2 * Math.random() - 1);
-            randomDirs[i * 3]     = Math.sin(phi) * Math.cos(theta);
-            randomDirs[i * 3 + 1] = Math.sin(phi) * Math.sin(theta);
-            randomDirs[i * 3 + 2] = Math.cos(phi);
-        }
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-
-        // --- 3. MIX ẢNH TO CHÀ BÁ VÀ ICON 💩 (Phần sửa chính) ---
-        const textureLoader = new THREE.TextureLoader();
-        
-        // Cần đảm bảo ảnh của bạn đã được up lên GitHub với tên avatar.jpg
-        textureLoader.load('avatar.jpg', function(userTexture) {
-            
-            // Tạo Canvas để "nướng" ảnh của bạn và 💩
-            const canvas = document.createElement('canvas');
-            canvas.width = 128; canvas.height = 128;
-            const ctx = canvas.getContext('2d');
-
-            // 1. Phóng to ảnh của bạn làm nền
-            // Vẽ ảnh tròn to chiếm gần hết canvas
+            // Tầng đáy
             ctx.beginPath();
-            ctx.arc(64, 64, 60, 0, Math.PI * 2);
+            ctx.ellipse(256, 400, 180, 70, 0, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke();
+
+            // Tầng giữa
+            ctx.beginPath();
+            ctx.ellipse(256, 300, 140, 60, 0, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke();
+
+            // Tầng trên
+            ctx.beginPath();
+            ctx.ellipse(256, 210, 90, 45, 0, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke();
+
+            // Chóp nhọn xoắn
+            ctx.beginPath();
+            ctx.moveTo(210, 180);
+            ctx.quadraticCurveTo(256, 100, 290, 80);
+            ctx.quadraticCurveTo(270, 130, 280, 170);
+            ctx.fill(); ctx.stroke();
+
+            // --- VẼ MẮT EMOJI CƯỜI ---
+            // Mắt trái
+            ctx.fillStyle = '#FFFFFF';
+            ctx.beginPath(); ctx.arc(200, 280, 35, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#000000';
+            ctx.beginPath(); ctx.arc(200, 280, 18, 0, Math.PI * 2); ctx.fill();
+
+            // Mắt phải
+            ctx.fillStyle = '#FFFFFF';
+            ctx.beginPath(); ctx.arc(312, 280, 35, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#000000';
+            ctx.beginPath(); ctx.arc(312, 280, 18, 0, Math.PI * 2); ctx.fill();
+
+            // Miệng cười
+            ctx.fillStyle = '#FFFFFF';
+            ctx.beginPath();
+            ctx.arc(256, 330, 50, 0, Math.PI, false);
             ctx.closePath();
-            ctx.clip(); // Cắt tròn ảnh
+            ctx.fill(); ctx.stroke();
 
-            // Vẽ ảnh của bạn to hơn 
-            ctx.drawImage(userTexture.image, 0, 0, 128, 128); 
-
-            // 2. Chêm icon 💩 xung quanh ảnh làm viền
-            ctx.font = '24px serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            // Vẽ icon 💩 lấp ló xung quanh
-            ctx.fillText('💩', 32, 20);
-            ctx.fillText('💩', 96, 20);
-            ctx.fillText('💩', 32, 108);
-            ctx.fillText('💩', 96, 108);
-
-            const customTexture = new THREE.CanvasTexture(canvas);
-
-            const material = new THREE.PointsMaterial({
-                size: 2.0, // Phóng to kích thước hạt
-                map: customTexture,
-                transparent: true,
-                depthWrite: false,
-                blending: THREE.NormalBlending
-            });
-
-            const poopParticles = new THREE.Points(geometry, material);
-            scene.add(poopParticles);
-
-            // ANIMATION LOOP
-            let clock = new THREE.Clock();
-            let currentFactor = 0;
-
-            function animate() {
-                requestAnimationFrame(animate);
-                let time = clock.getElapsedTime();
-                currentFactor += (openHandFactor - currentFactor) * 0.1;
-                poopParticles.rotation.y = time * 0.2;
-                let pulse = Math.sin(time * 3) * 0.05 + 1;
-                const posAttr = geometry.attributes.position;
-                for (let i = 0; i < particleCount; i++) {
-                    let ix = i * 3, iy = i * 3 + 1, iz = i * 3 + 2;
-                    let tx = basePositions[ix] * pulse;
-                    let ty = basePositions[iy] * pulse;
-                    let tz = basePositions[iz] * pulse;
-                    let blastDist = 30 + Math.sin(i + time) * 12;
-                    let bx = tx + randomDirs[ix] * blastDist;
-                    let by = ty + randomDirs[iy] * blastDist;
-                    let bz = tz + randomDirs[iz] * blastDist;
-                    posAttr.array[ix] += ((tx * (1 - currentFactor) + bx * currentFactor) - posAttr.array[ix]) * 0.12;
-                    posAttr.array[iy] += ((ty * (1 - currentFactor) + by * currentFactor) - posAttr.array[iy]) * 0.12;
-                    posAttr.array[iz] += ((tz * (1 - currentFactor) + bz * currentFactor) - posAttr.array[iz]) * 0.12;
-                }
-                posAttr.needsUpdate = true;
-                renderer.render(scene, camera);
+            // --- NẾU LOAD ĐƯỢC ẢNH CỦA BẠN: ĐẮP ẢNH VÀO TÂM BÃI CỨT ---
+            if (userImg) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(256, 210, 40, 0, Math.PI * 2); // Khung tròn trên tầng trên
+                ctx.closePath();
+                ctx.clip();
+                ctx.drawImage(userImg, 216, 170, 80, 80);
+                ctx.restore();
+                ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 6;
+                ctx.beginPath(); ctx.arc(256, 210, 40, 0, Math.PI * 2); ctx.stroke();
             }
-            animate();
-        });
+        }
 
-        // --- 4. MEDIAPIPE HANDS (Giữ nguyên) ---
+        // Vẽ bãi phân ban đầu
+        drawPoopWithUserImage();
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+        const poopSprite = new THREE.Sprite(material);
+        poopSprite.scale.set(28, 28, 1);
+        scene.add(poopSprite);
+
+        // Load ảnh IMG_0501.jpeg lồng vào
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.src = 'IMG_0501.jpeg';
+        img.onload = () => {
+            drawPoopWithUserImage(img);
+            texture.needsUpdate = true;
+        };
+
+        // 3. MEDIAPIPE HANDS DETECT
         let openHandFactor = 0;
         function onResults(results) {
-            document.getElementById('loading').style.display = 'none';
+            document.getElementById('loading').style.opacity = '0';
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 const hand = results.multiHandLandmarks[0];
                 const wrist = hand[0];
@@ -176,17 +143,40 @@
                 openHandFactor = 0;
             }
         }
+
         const hands = new Hands({
             locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
         });
         hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
         hands.onResults(onResults);
+
         const videoElement = document.getElementById('webcam');
         const cameraUtils = new Camera(videoElement, {
             onFrame: async () => { await hands.send({ image: videoElement }); },
             width: 640, height: 480
         });
         cameraUtils.start();
+
+        // 4. ANIMATION LOOP
+        let clock = new THREE.Clock();
+        let currentFactor = 0;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            let time = clock.getElapsedTime();
+            currentFactor += (openHandFactor - currentFactor) * 0.1;
+
+            // Đống phân lắc lư nhún nhảy
+            poopSprite.rotation.z = Math.sin(time * 2) * 0.1;
+            
+            // Xòe tay ra thì bãi phân phóng to cực đại & biến mất!
+            let scaleVal = 28 * (1 + currentFactor * 1.5);
+            poopSprite.scale.set(scaleVal, scaleVal, 1);
+            material.opacity = 1 - currentFactor;
+
+            renderer.render(scene, camera);
+        }
+        animate();
 
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
