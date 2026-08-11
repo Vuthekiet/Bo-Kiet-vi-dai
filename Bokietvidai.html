@@ -13,6 +13,7 @@
             transform: translate(-50%, -50%);
             color: #d2b48c; font-size: 18px; letter-spacing: 2px;
             pointer-events: none; z-index: 10; font-weight: bold;
+            transition: opacity 0.5s;
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -21,7 +22,7 @@
 </head>
 <body>
 
-    <div id="loading">ĐANG TẠO BÃI CỨT 3D...</div>
+    <div id="loading">ĐANG KHỞI TẠO BÃI CỨT 3D...</div>
     <video id="webcam" playsinline></video>
 
     <script>
@@ -35,28 +36,25 @@
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.body.appendChild(renderer.domElement);
 
-        // 2. TẠO HÌNH BÃI CỨT 3D (CÔNG THỨC XOẮN ỐC NÓN 3 TẦNG)
-        const particleCount = 4000;
+        // 2. TẠO HÌNH BÃI CỨT 3D
+        const particleCount = 3500;
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
         const basePositions = new Float32Array(particleCount * 3);
         const randomDirs = new Float32Array(particleCount * 3);
 
         for (let i = 0; i < particleCount; i++) {
-            // Cấu trúc bãi phân: Ốc xoắn hình nón nén dọc
-            let h = Math.random(); // Độ cao từ 0 (đáy) đến 1 (đỉnh)
-            let radius = (1 - h) * 12 + 0.5; // Đáy to đỉnh nhỏ
-            let angle = h * Math.PI * 10 + (Math.random() * 0.5); // Xoắn ốc 5 vòng
+            let h = Math.random(); 
+            let radius = (1 - h) * 12 + 0.5; 
+            let angle = h * Math.PI * 10 + (Math.random() * 0.5); 
 
-            // Tạo các nếp cuộn tròn của bãi phân
             let bump = Math.sin(h * Math.PI * 6) * 1.5;
             radius += bump;
 
             let x = Math.cos(angle) * radius;
             let z = Math.sin(angle) * radius;
-            let y = (h - 0.5) * 16; // Chiều cao
+            let y = (h - 0.5) * 16; 
 
-            // Mắt chóp trên đỉnh bãi phân
             if (h > 0.85) {
                 let topH = (h - 0.85) / 0.15;
                 x *= (1 - topH);
@@ -71,7 +69,6 @@
             positions[i * 3 + 1] = y;
             positions[i * 3 + 2] = z;
 
-            // Hướng văng nổ khi xòe tay
             let theta = Math.random() * Math.PI * 2;
             let phi = Math.acos(2 * Math.random() - 1);
             randomDirs[i * 3]     = Math.sin(phi) * Math.cos(theta);
@@ -81,108 +78,116 @@
 
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-        // 3. TẢO TEXTURE KẾT HỢP ẢNH CỦA BẠN + ICON 💩
-        const textureLoader = new THREE.TextureLoader();
-        
-        // Tải ảnh avatar.jpg mà bạn vừa up lên GitHub
-        textureLoader.load('avatar.jpg', function(userTexture) {
-            
-            // Tạo Canvas để cắt ảnh thành hình tròn và viền icon 💩
-            const canvas = document.createElement('canvas');
-            canvas.width = 128; canvas.height = 128;
-            const ctx = canvas.getContext('2d');
+        // 3. TẠO TEXTURE MẶC ĐỊNH (ICON 💩) TRƯỚC ĐỂ KHÔNG BỊ TREO LOGO
+        const canvas = document.createElement('canvas');
+        canvas.width = 128; canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        ctx.font = '80px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('💩', 64, 64);
 
-            // Vẽ viền tròn ảnh
+        const customTexture = new THREE.CanvasTexture(canvas);
+
+        const material = new THREE.PointsMaterial({
+            size: 1.2,
+            map: customTexture,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.NormalBlending
+        });
+
+        const poopParticles = new THREE.Points(geometry, material);
+        scene.add(poopParticles);
+
+        // 4. LOAD ẢNH IMG_0501.jpeg VÀ VẼ LÊN HẠT
+        const textureLoader = new THREE.TextureLoader();
+        textureLoader.load('IMG_0501.jpeg', function(userTexture) {
+            ctx.clearRect(0, 0, 128, 128);
+            
+            // Cắt viền tròn
+            ctx.save();
             ctx.beginPath();
-            ctx.arc(64, 64, 50, 0, Math.PI * 2);
+            ctx.arc(64, 64, 48, 0, Math.PI * 2);
             ctx.closePath();
             ctx.clip();
+            ctx.drawImage(userTexture.image, 16, 16, 96, 96);
+            ctx.restore();
 
-            // Vẽ ảnh của bạn vào tâm hạt
-            ctx.drawImage(userTexture.image, 14, 14, 100, 100);
-
-            // Vẽ viền icon 💩 xung quanh
+            // Sửa viền bằng icon 💩
             ctx.font = '24px serif';
-            ctx.fillText('💩', 50, 20);
-            ctx.fillText('💩', 50, 120);
+            ctx.fillText('💩', 64, 14);
+            ctx.fillText('💩', 64, 114);
 
-            const customTexture = new THREE.CanvasTexture(canvas);
-
-            const material = new THREE.PointsMaterial({
-                size: 1.2,
-                map: customTexture,
-                transparent: true,
-                depthWrite: false,
-                blending: THREE.NormalBlending
-            });
-
-            const poopParticles = new THREE.Points(geometry, material);
-            scene.add(poopParticles);
-
-            // ANIMATION & MEDIAPIPE HANDS
-            let openHandFactor = 0;
-            function onResults(results) {
-                document.getElementById('loading').style.display = 'none';
-                if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                    const hand = results.multiHandLandmarks[0];
-                    const wrist = hand[0];
-                    let totalDist = 0;
-                    const tips = [4, 8, 12, 16, 20];
-                    tips.forEach(idx => {
-                        totalDist += Math.hypot(hand[idx].x - wrist.x, hand[idx].y - wrist.y);
-                    });
-                    let avgDist = totalDist / 5;
-                    let targetFactor = THREE.MathUtils.mapLinear(avgDist, 0.25, 0.48, 0, 1);
-                    openHandFactor = THREE.MathUtils.clamp(targetFactor, 0, 1);
-                } else {
-                    openHandFactor = 0;
-                }
-            }
-
-            const hands = new Hands({
-                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-            });
-            hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
-            hands.onResults(onResults);
-
-            const videoElement = document.getElementById('webcam');
-            const cameraUtils = new Camera(videoElement, {
-                onFrame: async () => { await hands.send({ image: videoElement }); },
-                width: 640, height: 480
-            });
-            cameraUtils.start();
-
-            let clock = new THREE.Clock();
-            let currentFactor = 0;
-
-            function animate() {
-                requestAnimationFrame(animate);
-                let time = clock.getElapsedTime();
-                currentFactor += (openHandFactor - currentFactor) * 0.1;
-
-                poopParticles.rotation.y = time * 0.4; // Xoay bãi phân 3D
-
-                const posAttr = geometry.attributes.position;
-                for (let i = 0; i < particleCount; i++) {
-                    let ix = i * 3, iy = i * 3 + 1, iz = i * 3 + 2;
-                    let tx = basePositions[ix];
-                    let ty = basePositions[iy];
-                    let tz = basePositions[iz];
-
-                    let blastDist = 30 + Math.sin(i + time) * 12;
-                    let bx = tx + randomDirs[ix] * blastDist;
-                    let by = ty + randomDirs[iy] * blastDist;
-                    let bz = tz + randomDirs[iz] * blastDist;
-
-                    posAttr.array[ix] += ((tx * (1 - currentFactor) + bx * currentFactor) - posAttr.array[ix]) * 0.12;
-                    posAttr.array[iy] += ((ty * (1 - currentFactor) + by * currentFactor) - posAttr.array[iy]) * 0.12;
-                    posAttr.array[iz] += ((tz * (1 - currentFactor) + bz * currentFactor) - posAttr.array[iz]) * 0.12;
-                }
-                posAttr.needsUpdate = true;
-                renderer.render(scene, camera);
-            }
-            animate();
+            customTexture.needsUpdate = true;
+        }, undefined, function(err) {
+            console.log("Chưa load được ảnh, chạy bằng icon 💩 mặc định");
         });
+
+        // 5. MEDIAPIPE HANDS
+        let openHandFactor = 0;
+        function onResults(results) {
+            document.getElementById('loading').style.opacity = '0';
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const hand = results.multiHandLandmarks[0];
+                const wrist = hand[0];
+                let totalDist = 0;
+                const tips = [4, 8, 12, 16, 20];
+                tips.forEach(idx => {
+                    totalDist += Math.hypot(hand[idx].x - wrist.x, hand[idx].y - wrist.y);
+                });
+                let avgDist = totalDist / 5;
+                let targetFactor = THREE.MathUtils.mapLinear(avgDist, 0.25, 0.48, 0, 1);
+                openHandFactor = THREE.MathUtils.clamp(targetFactor, 0, 1);
+            } else {
+                openHandFactor = 0;
+            }
+        }
+
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+        hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+        hands.onResults(onResults);
+
+        const videoElement = document.getElementById('webcam');
+        const cameraUtils = new Camera(videoElement, {
+            onFrame: async () => { await hands.send({ image: videoElement }); },
+            width: 640, height: 480
+        });
+        cameraUtils.start();
+
+        // 6. ANIMATION LOOP
+        let clock = new THREE.Clock();
+        let currentFactor = 0;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            let time = clock.getElapsedTime();
+            currentFactor += (openHandFactor - currentFactor) * 0.1;
+
+            poopParticles.rotation.y = time * 0.4;
+
+            const posAttr = geometry.attributes.position;
+            for (let i = 0; i < particleCount; i++) {
+                let ix = i * 3, iy = i * 3 + 1, iz = i * 3 + 2;
+                let tx = basePositions[ix];
+                let ty = basePositions[iy];
+                let tz = basePositions[iz];
+
+                let blastDist = 30 + Math.sin(i + time) * 12;
+                let bx = tx + randomDirs[ix] * blastDist;
+                let by = ty + randomDirs[iy] * blastDist;
+                let bz = tz + randomDirs[iz] * blastDist;
+
+                posAttr.array[ix] += ((tx * (1 - currentFactor) + bx * currentFactor) - posAttr.array[ix]) * 0.12;
+                posAttr.array[iy] += ((ty * (1 - currentFactor) + by * currentFactor) - posAttr.array[iy]) * 0.12;
+                posAttr.array[iz] += ((tz * (1 - currentFactor) + bz * currentFactor) - posAttr.array[iz]) * 0.12;
+            }
+            posAttr.needsUpdate = true;
+            renderer.render(scene, camera);
+        }
+        animate();
 
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
