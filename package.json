@@ -1,6 +1,7 @@
 {
   "name": "bo-kiet-vi-dai",
   "version": "1.0.0",
+  "description": "Heart 3D Web",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
