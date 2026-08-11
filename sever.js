@@ -6,9 +6,9 @@ const PORT = process.env.PORT || 3000;
 // Phục vụ tất cả các file trong thư mục
 app.use(express.static(__dirname));
 
-// Trả về file giao diện Bokietvidai.html khi vào trang chủ
+// Trả về file giao diện index.html khi vào trang chủ
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'Bokietvidai.html'));
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.listen(PORT, () => {
