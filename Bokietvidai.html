@@ -1,1167 +1,895 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SEED DICE LAB — Phân Tích & Dự Đoán Xúc Xắc 3D (XOÀI / TÁO)</title>
-<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>🎲 XÚC XẮC TIÊN TRI</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 <style>
-  :root{
-    --bg:#060a09;
-    --panel:rgba(255,255,255,.035);
-    --panel2:rgba(255,255,255,.06);
-    --line:rgba(255,255,255,.09);
-    --line2:rgba(255,255,255,.18);
-    --text:#e8f0ec;
-    --muted:#8ba39a;
-    --faint:#5c7269;
-    --mango:#fbbf24;  --mango-dim:rgba(251,191,36,.13);
-    --apple:#fb7185;  --apple-dim:rgba(251,113,133,.13);
-    --live:#34d399;   --live-dim:rgba(52,211,153,.13);
-    --accent:#2dd4bf; --accent-dim:rgba(45,212,191,.12);
-    --violet:#a78bfa;
-    --radius:18px;
-  }
-  html{scroll-behavior:smooth}
-  body{
-    background:var(--bg);
-    color:var(--text);
-    font-family:'Inter',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
-    min-height:100vh;
-    overflow-x:hidden;
-    -webkit-font-smoothing:antialiased;
-  }
-  body::before{
-    content:'';position:fixed;inset:0;z-index:-2;pointer-events:none;
-    background:
-      radial-gradient(640px 420px at 10% -6%, rgba(45,212,191,.10), transparent 60%),
-      radial-gradient(720px 520px at 96% 8%,  rgba(251,113,133,.08), transparent 60%),
-      radial-gradient(840px 620px at 50% 112%, rgba(251,191,36,.07), transparent 60%);
-  }
-  body::after{
-    content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.55;
-    background-image:
-      linear-gradient(rgba(255,255,255,.028) 1px,transparent 1px),
-      linear-gradient(90deg,rgba(255,255,255,.028) 1px,transparent 1px);
-    background-size:44px 44px;
-    -webkit-mask-image:radial-gradient(ellipse at center, black 25%, transparent 78%);
-            mask-image:radial-gradient(ellipse at center, black 25%, transparent 78%);
-  }
-  .mono{font-family:ui-monospace,'Cascadia Code','JetBrains Mono',Menlo,Consolas,monospace}
-  .dim{color:var(--muted)}
-  .c-mango{color:var(--mango)} .c-apple{color:var(--apple)}
-  .c-live{color:var(--live)} .c-accent{color:var(--accent)}
+/* ===== DESIGN TOKENS ===== */
+:root {
+  --bg:        #0a0c10;
+  --surface:   #111520;
+  --surface2:  #181e2e;
+  --border:    #252d42;
+  --xoai:      #f5c518;
+  --xoai-glow: rgba(245,197,24,.25);
+  --tao:       #3ec6f5;
+  --tao-glow:  rgba(62,198,245,.22);
+  --ok:        #22d47a;
+  --err:       #ff4d6d;
+  --muted:     #5a6785;
+  --text:      #d0daf0;
+  --text-dim:  #8694b0;
+  --radius:    14px;
+  --radius-sm: 8px;
+  --font:      'Segoe UI', system-ui, sans-serif;
+  --mono:      'Courier New', monospace;
+  --trans:     .18s ease;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;scroll-behavior:smooth}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+button{font-family:inherit;cursor:pointer;border:none;outline:none}
+input,textarea{font-family:inherit}
 
-  /* ---------- Layout ---------- */
-  .app-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}
-  .col-engine{grid-column:span 12}
-  .col-predict{grid-column:span 12}
-  .col-stats{grid-column:span 12}
-  .col-log{grid-column:span 12}
-  @media(min-width:768px){
-    .col-engine{grid-column:span 5}
-    .col-predict{grid-column:span 7}
-    .col-stats{grid-column:span 12}
-  }
-  @media(min-width:1100px){
-    .col-engine{grid-column:span 4}
-    .col-predict{grid-column:span 5}
-    .col-stats{grid-column:span 3}
-  }
+/* ===== LAYOUT ===== */
+.app{max-width:700px;margin:0 auto;padding:16px 12px 80px;display:flex;flex-direction:column;gap:14px;}
 
-  /* ---------- Panels ---------- */
-  .panel{
-    background:var(--panel);
-    border:1px solid var(--line);
-    border-radius:var(--radius);
-    backdrop-filter:blur(14px);
-    -webkit-backdrop-filter:blur(14px);
-    position:relative;
-    box-shadow:0 18px 48px rgba(0,0,0,.35);
-  }
-  .panel-h{
-    display:flex;align-items:center;gap:10px;
-    padding:14px 18px;border-bottom:1px solid var(--line);
-  }
-  .panel-h h2{font-size:12px;font-weight:800;letter-spacing:.14em;margin:0}
-  .panel-ico{color:var(--accent);display:inline-flex;flex-shrink:0}
-  .kicker{font-size:10.5px;font-weight:700;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;display:flex;align-items:center;gap:6px}
-  .big-num{font-size:22px;font-weight:700}
-  .unit{font-size:13px;color:var(--muted);margin-left:3px}
+/* ===== HEADER ===== */
+.header{text-align:center;padding:20px 0 10px;}
+.header h1{font-size:clamp(1.35rem,5vw,1.9rem);font-weight:800;letter-spacing:-.5px;color:#fff;}
+.header p{font-size:.78rem;color:var(--text-dim);margin-top:4px;}
 
-  /* ---------- Badges / chips ---------- */
-  .badge{
-    display:inline-flex;align-items:center;gap:6px;
-    font-size:10.5px;font-weight:700;letter-spacing:.08em;
-    padding:4px 10px;border-radius:999px;
-    border:1px solid var(--line2);color:var(--muted);
-    white-space:nowrap;
-  }
-  .badge.b-live{color:var(--live);border-color:rgba(52,211,153,.4);background:var(--live-dim)}
-  .badge.b-tay{color:var(--violet);border-color:rgba(167,139,250,.4);background:rgba(167,139,250,.12)}
-  .badge.b-mango{color:var(--mango);border-color:rgba(251,191,36,.45);background:var(--mango-dim)}
-  .badge.b-apple{color:var(--apple);border-color:rgba(251,113,133,.45);background:var(--apple-dim)}
-  .chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;padding:3px 9px;border-radius:8px;letter-spacing:.05em}
-  .chip.d{color:var(--live);background:var(--live-dim);border:1px solid rgba(52,211,153,.35)}
-  .chip.s{color:var(--apple);background:var(--apple-dim);border:1px solid rgba(251,113,133,.35)}
+/* ===== CARD ===== */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;}
+.card-label{font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;}
 
-  .dot{width:8px;height:8px;border-radius:99px;display:inline-block;flex-shrink:0}
-  .dot.live{background:var(--live);box-shadow:0 0 10px var(--live);animation:pulse 1.2s ease-in-out infinite}
-  .dot.amber{background:#fbbf24;box-shadow:0 0 10px rgba(251,191,36,.8)}
-  .dot.violet{background:var(--violet);box-shadow:0 0 10px rgba(167,139,250,.8)}
-  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.75)}}
+/* ===== PREDICTION HERO ===== */
+.pred-hero{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px 16px 18px;text-align:center;transition:border-color var(--trans), box-shadow var(--trans);}
+.pred-hero.xoai{border-color:var(--xoai);box-shadow:0 0 32px var(--xoai-glow),inset 0 0 40px var(--xoai-glow);}
+.pred-hero.tao{border-color:var(--tao);box-shadow:0 0 32px var(--tao-glow),inset 0 0 40px var(--tao-glow);}
+.pred-label{font-size:.7rem;color:var(--text-dim);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;}
+.pred-result{font-size:clamp(3.5rem,15vw,5.5rem);font-weight:900;line-height:1;letter-spacing:-2px;transition:color var(--trans);}
+.pred-hero.xoai .pred-result{color:var(--xoai);text-shadow:0 0 40px var(--xoai);}
+.pred-hero.tao  .pred-result{color:var(--tao);text-shadow:0 0 40px var(--tao);}
+.pred-sub{display:flex;justify-content:center;gap:18px;margin-top:12px;flex-wrap:wrap;}
+.pred-sub span{font-size:.78rem;color:var(--text-dim);}
+.pred-sub strong{color:var(--text);}
+.confidence-bar{height:5px;background:var(--border);border-radius:99px;margin-top:14px;overflow:hidden;}
+.confidence-fill{height:100%;border-radius:99px;transition:width .3s ease, background .3s ease;}
+.xoai .confidence-fill{background:var(--xoai);}
+.tao  .confidence-fill{background:var(--tao);}
 
-  /* ---------- Buttons / inputs ---------- */
-  .btn{
-    display:inline-flex;align-items:center;justify-content:center;gap:8px;
-    font-weight:700;font-size:12.5px;letter-spacing:.05em;
-    border-radius:12px;padding:10px 14px;
-    border:1px solid var(--line2);color:var(--text);
-    background:var(--panel2);cursor:pointer;
-    transition:all .18s ease;user-select:none;white-space:nowrap;
-  }
-  .btn:hover{background:rgba(255,255,255,.1);transform:translateY(-1px)}
-  .btn:active{transform:translateY(0) scale(.97)}
-  .btn:disabled{opacity:.42;cursor:not-allowed;transform:none}
-  .btn-ok{border-color:rgba(52,211,153,.45);background:var(--live-dim);color:#6ee7b7}
-  .btn-ok:hover{background:rgba(52,211,153,.24)}
-  .btn-bad{border-color:rgba(251,113,133,.45);background:var(--apple-dim);color:#fda4af}
-  .btn-bad:hover{background:rgba(251,113,133,.24)}
-  .btn-warn{border-color:rgba(251,191,36,.45);background:var(--mango-dim);color:#fcd34d}
-  .btn-warn:hover{background:rgba(251,191,36,.24)}
-  .btn-ghost{background:transparent}
-  .input{
-    background:rgba(0,0,0,.38);border:1px solid var(--line2);
-    border-radius:10px;padding:9px 12px;color:var(--text);
-    font-size:13px;outline:none;transition:border-color .15s,box-shadow .15s;
-    min-width:0;width:100%;
-  }
-  .input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(45,212,191,.16)}
-  .input::placeholder{color:var(--faint)}
-  .shake{animation:shake .4s}
-  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+/* ===== DICE ROW ===== */
+.dice-row{display:flex;justify-content:center;gap:12px;margin-top:10px;}
+.die{width:44px;height:44px;background:var(--surface2);border:2px solid var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:900;color:#fff;transition:border-color var(--trans), box-shadow var(--trans);}
+.xoai .die{border-color:var(--xoai);box-shadow:0 0 10px var(--xoai-glow);}
+.tao  .die{border-color:var(--tao);box-shadow:0 0 10px var(--tao-glow);}
 
-  /* ---------- Engine panel ---------- */
-  .ts-val{font-size:26px;font-weight:700;letter-spacing:.02em;color:var(--accent);text-shadow:0 0 18px rgba(45,212,191,.35)}
-  .seed-preview{
-    margin-top:6px;padding:10px 12px;border-radius:10px;
-    background:rgba(0,0,0,.35);border:1px solid var(--line);
-    font-size:11.5px;line-height:1.6;color:var(--muted);
-    word-break:break-all;
-  }
-  .io-block{padding-top:12px;border-top:1px dashed var(--line)}
-  .eng-note{font-size:11.5px;line-height:1.6}
+/* ===== CLOCK ===== */
+.clock-row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.clock{font-size:.8rem;font-family:var(--mono);color:var(--text-dim);flex:1;min-width:0;}
+.clock span{color:var(--text);}
+.paused-badge{font-size:.65rem;background:#ff4d6d22;color:#ff4d6d;border:1px solid #ff4d6d55;border-radius:99px;padding:2px 9px;display:none;}
+.paused-badge.show{display:inline;}
 
-  /* ---------- Hash display ---------- */
-  .hash-box{
-    margin-top:6px;padding:14px 16px;border-radius:12px;
-    background:rgba(0,0,0,.42);border:1px solid var(--line);
-    font-size:clamp(14px,1.55vw,19px);letter-spacing:.05em;line-height:1.85;
-    word-break:break-all;
-  }
-  .hb{color:var(--faint);transition:color .15s,text-shadow .15s;margin-right:4px}
-  .hb.sep{margin-right:12px}
-  .hb.used{color:#5eead4;text-shadow:0 0 12px rgba(94,234,212,.5)}
-  .caret{display:inline-block;width:9px;height:1.05em;background:var(--accent);vertical-align:-0.15em;margin-left:4px;border-radius:2px;animation:blink 1s steps(1) infinite}
-  @keyframes blink{50%{opacity:0}}
-  .used-legend{font-size:11px;color:var(--muted);margin-top:8px}
+/* ===== MD5 DISPLAY ===== */
+.md5-display{font-family:var(--mono);font-size:.65rem;color:var(--text-dim);word-break:break-all;line-height:1.6;padding:8px 10px;background:var(--bg);border-radius:var(--radius-sm);border:1px solid var(--border);min-height:36px;user-select:all;}
 
-  /* ---------- Dice ---------- */
-  .dice-wrap{display:flex;gap:20px;justify-content:center;padding:8px 0 4px;perspective:600px}
-  .dice{
-    width:76px;height:76px;border-radius:18px;position:relative;flex-shrink:0;
-    background:linear-gradient(155deg,#1c2220,#0f1413);
-    border:1px solid var(--line2);
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 12px 28px rgba(0,0,0,.5);
-    transition:border-color .3s;
-  }
-  .dice-wrap[data-side="XOÀI"] .dice{border-color:rgba(251,191,36,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 12px 28px rgba(0,0,0,.5),0 0 26px rgba(251,191,36,.16)}
-  .dice-wrap[data-side="TÁO"] .dice{border-color:rgba(251,113,133,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 12px 28px rgba(0,0,0,.5),0 0 26px rgba(251,113,133,.16)}
-  .pip{position:absolute;width:15%;height:15%;border-radius:9999px;background:#fff;opacity:0;box-shadow:0 0 9px rgba(255,255,255,.55);transition:opacity .07s}
-  .pip.on{opacity:1}
-  .p1{left:16%;top:16%}.p2{left:69%;top:16%}.p3{left:16%;top:69%}
-  .p4{left:69%;top:69%}.p5{left:42.5%;top:42.5%}.p6{left:16%;top:42.5%}.p7{left:69%;top:42.5%}
-  .dice.rolling{animation:roll .3s linear infinite}
-  @keyframes roll{
-    0%{transform:translateY(0) rotate(0deg)}
-    25%{transform:translateY(-4px) rotate(-2.5deg)}
-    50%{transform:translateY(1px) rotate(0deg)}
-    75%{transform:translateY(3px) rotate(2.5deg)}
-    100%{transform:translateY(0) rotate(0deg)}
-  }
-  @media(max-width:560px){.dice{width:60px;height:60px;border-radius:14px}}
+/* ===== CONTROLS ===== */
+.ctrl-row{display:flex;gap:8px;flex-wrap:wrap;}
+.btn{flex:1;min-width:100px;padding:11px 10px;border-radius:var(--radius-sm);font-size:.82rem;font-weight:700;transition:opacity var(--trans), transform .1s;}
+.btn:active{transform:scale(.97);}
+.btn-primary{background:linear-gradient(135deg,#2563eb,#1e3fa8);color:#fff;}
+.btn-pause{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+.btn-ok{background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;}
+.btn-err{background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;}
+.btn-csv{background:var(--surface2);color:var(--tao);border:1px solid var(--tao);font-size:.76rem;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
 
-  /* ---------- Result ---------- */
-  .result-row{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
-  .sum-val{font-size:46px;font-weight:900;line-height:1;letter-spacing:-.02em}
-  .side-badge{display:inline-block;font-size:26px;font-weight:900;letter-spacing:.14em;padding:10px 24px;border-radius:14px;border:1px solid;transition:all .25s}
-  .side-XOÀI{color:var(--mango);background:var(--mango-dim);border-color:rgba(251,191,36,.5);text-shadow:0 0 22px rgba(251,191,36,.55);box-shadow:0 0 34px rgba(251,191,36,.14),inset 0 0 22px rgba(251,191,36,.07)}
-  .side-TÁO{color:var(--apple);background:var(--apple-dim);border-color:rgba(251,113,133,.5);text-shadow:0 0 22px rgba(251,113,133,.55);box-shadow:0 0 34px rgba(251,113,133,.14),inset 0 0 22px rgba(251,113,133,.07)}
+/* ===== INPUTS ===== */
+.input-group{display:flex;flex-direction:column;gap:5px;}
+.input-group label{font-size:.7rem;color:var(--text-dim);}
+.input-group input,.input-group textarea{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:9px 11px;font-size:.82rem;width:100%;transition:border-color var(--trans);}
+.input-group input:focus,.input-group textarea:focus{outline:none;border-color:var(--tao);}
+.input-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.md5-input{font-family:var(--mono);font-size:.7rem;resize:none;height:60px;}
 
-  .conf-track{height:10px;border-radius:999px;background:rgba(0,0,0,.45);border:1px solid var(--line);overflow:hidden}
-  .conf-fill{height:100%;border-radius:999px;width:50%;transition:width .2s ease,background .3s ease}
-  .spec-wrap{margin-top:14px}
-  .spec-track{position:relative;height:14px;border-radius:999px;border:1px solid var(--line);overflow:hidden;background:linear-gradient(90deg,rgba(251,191,36,.28),rgba(251,113,133,.28))}
-  .spec-marker{
-    position:absolute;top:-3px;width:4px;height:20px;border-radius:3px;
-    background:#fff;box-shadow:0 0 12px rgba(255,255,255,.8);
-    transition:left .2s ease;transform:translateX(-2px);
-  }
-  .spec-labels{display:flex;justify-content:space-between;margin-top:7px;font-size:10.5px;font-weight:700;letter-spacing:.08em}
-  .ctrl-row{display:flex;gap:10px;flex-wrap:wrap}
-  .hint{font-size:11.5px;color:var(--muted);line-height:1.6}
-  .manual-block{padding-top:14px;border-top:1px dashed var(--line)}
-  .crypto-warn{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:12px;color:#fca5a5;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.35)}
+/* ===== SEED INFO ===== */
+.seed-info{font-size:.68rem;font-family:var(--mono);color:var(--text-dim);padding:8px 10px;background:var(--bg);border-radius:var(--radius-sm);border:1px solid var(--border);word-break:break-all;line-height:1.7;}
+.seed-info strong{color:var(--text);}
 
-  /* ---------- Stats ---------- */
-  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .stat-card{
-    padding:13px 14px;border-radius:14px;
-    background:rgba(0,0,0,.28);border:1px solid var(--line);
-  }
-  .stat-num{font-size:26px;font-weight:800;line-height:1.2;margin-top:4px}
-  .acc-track{height:8px;border-radius:99px;background:rgba(0,0,0,.45);border:1px solid var(--line);overflow:hidden;margin-top:9px}
-  .acc-fill{height:100%;border-radius:99px;width:0;background:linear-gradient(90deg,rgba(52,211,153,.4),var(--live));transition:width .35s ease}
+/* ===== BIAS PANEL ===== */
+.bias-panel{font-size:.75rem;color:var(--text-dim);}
+.bias-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);}
+.bias-row:last-child{border:none;}
+.bias-badge{display:inline-block;font-size:.6rem;padding:1px 7px;border-radius:99px;margin-left:5px;vertical-align:middle;}
+.badge-on{background:#22d47a22;color:#22d47a;border:1px solid #22d47a55;}
+.badge-off{background:#5a678522;color:#5a6785;border:1px solid #5a678555;}
 
-  /* ---------- Log table ---------- */
-  .log-scroll{max-height:460px;overflow:auto;border-radius:0 0 var(--radius) var(--radius)}
-  .log-table{width:100%;border-collapse:collapse;font-size:12px}
-  .log-table th{
-    position:sticky;top:0;background:#0b1110;z-index:2;
-    text-align:left;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
-    color:var(--muted);padding:11px 13px;border-bottom:1px solid var(--line2);white-space:nowrap;
-  }
-  .log-table td{padding:10px 13px;border-bottom:1px solid rgba(255,255,255,.05);vertical-align:middle;white-space:nowrap}
-  .log-table tbody tr{animation:rowIn .35s ease both}
-  @keyframes rowIn{from{opacity:0;transform:translateY(-7px)}to{opacity:1;transform:none}}
-  .log-table tbody tr:hover{background:rgba(255,255,255,.035)}
-  .md5-cell{color:var(--muted);font-size:11px;letter-spacing:.04em}
-  .empty-cell{text-align:center!important;padding:42px 20px!important;color:var(--faint)!important;font-size:13px;line-height:1.7;white-space:normal!important}
+/* ===== STATS ===== */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center;}
+.stat-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 6px;}
+.stat-val{font-size:1.3rem;font-weight:800;color:#fff;line-height:1;}
+.stat-lbl{font-size:.62rem;color:var(--muted);margin-top:3px;}
 
-  /* ---------- Toast ---------- */
-  #toasts{position:fixed;right:18px;bottom:18px;z-index:60;display:flex;flex-direction:column;gap:10px;max-width:min(360px,calc(100vw - 36px))}
-  .toast{
-    display:flex;align-items:flex-start;gap:10px;
-    background:#101816;border:1px solid var(--line2);border-left:3px solid var(--accent);
-    border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.5;
-    box-shadow:0 14px 36px rgba(0,0,0,.55);
-    animation:toastIn .32s cubic-bezier(.2,.9,.3,1.15) both;
-  }
-  .toast.ok{border-left-color:var(--live)}
-  .toast.warn{border-left-color:#fbbf24}
-  .toast.err{border-left-color:#f87171}
-  .toast.out{animation:toastOut .3s ease both}
-  @keyframes toastIn{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
-  @keyframes toastOut{to{opacity:0;transform:translateX(28px)}}
+/* ===== LOG TABLE ===== */
+.log-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.log-table{width:100%;border-collapse:collapse;font-size:.68rem;}
+.log-table th{background:var(--bg);color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:7px 8px;text-align:left;white-space:nowrap;}
+.log-table td{padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap;color:var(--text-dim);}
+.log-table tr:last-child td{border:none;}
+.log-table tr:hover td{background:var(--surface2);}
+.tag-xoai{color:var(--xoai);font-weight:700;}
+.tag-tao{color:var(--tao);font-weight:700;}
+.tag-ok{color:var(--ok);font-weight:700;}
+.tag-err{color:var(--err);font-weight:700;}
+.tag-none{color:var(--muted);}
+.log-empty{text-align:center;color:var(--muted);font-size:.75rem;padding:24px;}
 
-  /* ---------- Scrollbar ---------- */
-  ::-webkit-scrollbar{width:10px;height:10px}
-  ::-webkit-scrollbar-track{background:transparent}
-  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.13);border-radius:99px;border:2px solid var(--bg)}
-  ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.22)}
+/* ===== TOAST ===== */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:10px 22px;font-size:.8rem;color:var(--text);pointer-events:none;transition:transform .3s ease, opacity .3s ease;opacity:0;z-index:999;white-space:nowrap;}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+
+/* ===== WEATHER STATUS ===== */
+.weather-status{font-size:.68rem;padding:6px 10px;border-radius:var(--radius-sm);background:var(--bg);border:1px solid var(--border);color:var(--text-dim);display:flex;align-items:center;gap:6px;}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.dot-ok{background:var(--ok);box-shadow:0 0 6px var(--ok);}
+.dot-warn{background:#f5c518;box-shadow:0 0 6px #f5c518;}
+.dot-err{background:var(--err);}
+
+/* ===== SECTION TOGGLE ===== */
+.section-head{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;}
+.section-head .arrow{font-size:.75rem;color:var(--muted);transition:transform var(--trans);}
+.section-head.open .arrow{transform:rotate(180deg);}
+.section-body{overflow:hidden;display:none;margin-top:10px;}
+.section-body.open{display:block;}
+
+/* ===== MISC ===== */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px;}
+@media(min-width:640px){.app{padding:24px 20px 80px;}}
 </style>
 </head>
 <body>
+<div class="app">
 
-<!-- ===================== HEADER ===================== -->
-<header class="sticky top-0 z-40 border-b border-white/10" style="background:rgba(6,10,9,.78);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)">
-  <div class="max-w-[1400px] mx-auto px-4 py-3 flex items-center gap-3 flex-wrap">
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#5eead4" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
-      <rect x="3" y="3" width="18" height="18" rx="4"/>
-      <circle cx="8.5" cy="8.5" r="1.5" fill="#5eead4" stroke="none"/>
-      <circle cx="15.5" cy="8.5" r="1.5" fill="#5eead4" stroke="none"/>
-      <circle cx="12" cy="12" r="1.5" fill="#5eead4" stroke="none"/>
-      <circle cx="8.5" cy="15.5" r="1.5" fill="#5eead4" stroke="none"/>
-      <circle cx="15.5" cy="15.5" r="1.5" fill="#5eead4" stroke="none"/>
-    </svg>
-    <div>
-      <h1 style="font-size:16px;font-weight:900;letter-spacing:.14em;line-height:1.1">SEED DICE LAB</h1>
-      <p class="dim" style="font-size:11px;letter-spacing:.04em">Phân tích &amp; dự đoán xúc xắc 3D — MD5 Seed Engine · XOÀI (3–10) / TÁO (11–18)</p>
-    </div>
-    <div class="ml-auto flex items-center gap-3 flex-wrap">
-      <span id="clock" class="mono dim" style="font-size:13px;letter-spacing:.06em">--:--:--</span>
-      <span class="badge" style="padding:6px 13px;font-size:11px">
-        <span id="statusDot" class="dot live"></span>
-        <span id="statusPill">LIVE</span>
-      </span>
-    </div>
-  </div>
-</header>
-
-<!-- ===================== MAIN ===================== -->
-<main class="max-w-[1400px] mx-auto px-4 py-5 flex flex-col gap-4">
-
-  <div class="app-grid">
-
-    <!-- ========== SEED ENGINE ========== -->
-    <section class="panel col-engine">
-      <div class="panel-h">
-        <span class="panel-ico">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
-        </span>
-        <h2>BỘ TẠO HẠT GIỐNG (SEED)</h2>
-      </div>
-      <div class="p-4 flex flex-col gap-4">
-        <div class="flex justify-between items-start gap-3 flex-wrap">
-          <div>
-            <div class="kicker">TIMESTAMP (ms)</div>
-            <div id="tsVal" class="mono ts-val">0</div>
-          </div>
-          <div class="text-right">
-            <div class="kicker">NHIỆT ĐỘ</div>
-            <div><span id="tempVal" class="mono big-num">30.0</span><span class="unit">°C</span></div>
-            <span id="tempBadge" class="badge mt-1">Mặc định</span>
-          </div>
-        </div>
-
-        <div class="flex justify-between items-start gap-3 flex-wrap">
-          <div>
-            <div class="kicker">TỌA ĐỘ (Lat, Lng)</div>
-            <div id="coordVal" class="mono" style="font-size:15px;font-weight:700;margin-top:4px">Đang định vị…</div>
-          </div>
-          <div class="text-right">
-            <div class="kicker">WEIGHT BIAS</div>
-            <div id="biasVal" class="mono big-num" style="color:var(--violet);text-shadow:0 0 16px rgba(167,139,250,.4)">0</div>
-            <div class="dim" style="font-size:11px">Ngưỡng: <span id="thrVal" class="mono">10.5</span> · XOÀI ≤ ngưỡng &lt; TÁO</div>
-          </div>
-        </div>
-
-        <div>
-          <div class="kicker">CẤU TRÚC SEED ĐANG BĂM MD5</div>
-          <div id="seedPreview" class="seed-preview mono">…</div>
-        </div>
-
-        <div class="io-block">
-          <div class="kicker mb-2">ĐIỀU CHỈNH THỦ CÔNG (2 Ô NHẬP)</div>
-          <div class="flex flex-col gap-2">
-            <div class="flex gap-2">
-              <input id="tempInput" class="input flex-1" type="number" step="0.1" placeholder="Nhiệt độ (°C)">
-              <button id="locateBtn" class="btn" title="Xin quyền vị trí & lấy nhiệt độ thực tế">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                LẤY VỊ TRÍ
-              </button>
-            </div>
-            <div class="flex gap-2">
-              <input id="coordInput" class="input mono flex-1" placeholder="Tọa độ: 10.7769, 106.7009">
-              <button id="applyCoordBtn" class="btn">ÁP DỤNG</button>
-            </div>
-          </div>
-        </div>
-
-        <p class="eng-note dim">
-          Seed = <b>Timestamp(ms)</b> + <b>Nhiệt độ(°C)</b> + <b>Tọa độ(Lat,Lng)</b> + Bias.
-          Mỗi xúc xắc trích từ 1 byte MD5 qua <b>rejection sampling mod 6</b> — loại bỏ hoàn toàn lệch tỷ lệ.
-          Bias học từ phản hồi SAI chỉ dịch chuyển ngưỡng phân loại, không can thiệp tính công bằng của xúc xắc.
-        </p>
-      </div>
-    </section>
-
-    <!-- ========== PREDICTION ========== -->
-    <section class="panel col-predict">
-      <div class="panel-h">
-        <span class="panel-ico">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
-        </span>
-        <h2>KẾT QUẢ DỰ ĐOÁN</h2>
-        <span id="modeBadge" class="badge b-live ml-auto">LIVE</span>
-      </div>
-      <div class="p-5 flex flex-col gap-5">
-
-        <div>
-          <div class="kicker">MD5(SEED) — CẬP NHẬT THEO MILIGIÂY</div>
-          <div class="hash-box mono"><span id="md5Box"></span><span class="caret"></span></div>
-          <div class="used-legend">Byte MD5 dùng cho 3 xúc xắc: <b id="usedLegend" class="mono c-accent">—</b> <span class="dim">· chữ sáng = đã qua rejection sampling (b &lt; 252)</span></div>
-        </div>
-
-        <div class="dice-wrap" id="diceWrap" data-side="XOÀI">
-          <div class="dice rolling" id="dice1"></div>
-          <div class="dice rolling" id="dice2"></div>
-          <div class="dice rolling" id="dice3"></div>
-        </div>
-
-        <div class="result-row">
-          <div>
-            <div class="kicker">TỔNG 3 XÚC XẮC</div>
-            <div id="sumVal" class="sum-val">3</div>
-          </div>
-          <div class="text-right">
-            <div class="kicker">CỬA DỰ ĐOÁN</div>
-            <span id="sideBadge" class="side-badge side-XOÀI" style="margin-top:4px">XOÀI</span>
-          </div>
-        </div>
-
-        <div>
-          <div class="flex justify-between items-center mb-1.5">
-            <span class="dim" style="font-size:11.5px;font-weight:700;letter-spacing:.08em">ĐỘ TIN CẬY (CONFIDENCE)</span>
-            <span id="confPct" class="mono c-accent" style="font-size:13px;font-weight:700">50.0%</span>
-          </div>
-          <div class="conf-track"><div id="confFill" class="conf-fill"></div></div>
-          <div class="spec-wrap">
-            <div class="spec-track"><div id="specMarker" class="spec-marker" style="left:0%"></div></div>
-            <div class="spec-labels">
-              <span class="c-mango">3 · XOÀI</span>
-              <span id="specMid" class="mono dim">10.5</span>
-              <span class="c-apple">18 · TÁO</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="ctrl-row">
-          <button id="pauseBtn" class="btn btn-warn">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="8" y1="5" x2="8" y2="19"/><line x1="16" y1="5" x2="16" y2="19"/></svg>
-            <span id="pauseLabel">TẠM DỪNG</span>
-          </button>
-          <button id="correctBtn" class="btn btn-ok">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 9 17 20 6"/></svg>
-            ĐÚNG — KHỚP
-          </button>
-          <button id="wrongBtn" class="btn btn-bad">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
-            SAI — LỆCH
-          </button>
-        </div>
-        <p class="hint">Đánh giá <b>ĐÚNG / SAI</b> để chốt lượt test vào nhật ký. Phản hồi <b>SAI</b> sẽ tự động điều chỉnh Weight Bias nhằm tăng độ chính xác lượt sau.</p>
-
-        <div class="manual-block">
-          <div class="kicker mb-2">MD5 THỦ CÔNG — ƯU TIÊN PHÂN TÍCH CHUỖI NHẬP NGOÀI</div>
-          <div class="flex gap-2 flex-wrap">
-            <input id="manualInput" class="input mono flex-1" placeholder="Dán 32 ký tự MD5 hex (0-9, a-f)…" maxlength="32" autocomplete="off" spellcheck="false">
-            <button id="analyzeBtn" class="btn">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
-              PHÂN TÍCH
-            </button>
-            <button id="backLiveBtn" class="btn btn-ghost" style="display:none">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-              VỀ SEED ĐỘNG
-            </button>
-          </div>
-          <div id="cryptoWarn" class="crypto-warn" hidden>
-            Không tải được thư viện CryptoJS từ CDN — vui lòng kiểm tra kết nối mạng và tải lại trang.
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ========== STATS ========== -->
-    <section class="panel col-stats">
-      <div class="panel-h">
-        <span class="panel-ico">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
-        </span>
-        <h2>THỐNG KÊ TÍCH LŨY</h2>
-      </div>
-      <div class="p-4 flex flex-col gap-3">
-        <div class="stat-grid">
-          <div class="stat-card">
-            <div class="kicker">TỔNG LƯỢT</div>
-            <div id="stTotal" class="stat-num mono">0</div>
-          </div>
-          <div class="stat-card">
-            <div class="kicker c-live">ĐÚNG</div>
-            <div id="stCorrect" class="stat-num mono c-live">0</div>
-          </div>
-          <div class="stat-card">
-            <div class="kicker c-apple">SAI</div>
-            <div id="stWrong" class="stat-num mono c-apple">0</div>
-          </div>
-          <div class="stat-card">
-            <div class="kicker">ĐỘ CHÍNH XÁC</div>
-            <div id="stAcc" class="stat-num mono c-accent">0.0%</div>
-            <div class="acc-track"><div id="accBar" class="acc-fill"></div></div>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="kicker mb-1.5">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
-            THỜI TIẾT &amp; VỊ TRÍ
-          </div>
-          <div class="flex justify-between items-end gap-2 flex-wrap">
-            <span id="wTemp" class="mono big-num">30.0°C</span>
-            <span id="wSource" class="badge">Mặc định</span>
-          </div>
-          <div class="dim mt-1.5" style="font-size:11px;line-height:1.7">
-            Tọa độ: <span id="wCoords" class="mono">N/A</span><br>
-            Cập nhật lúc: <span id="wUpdated" class="mono">—</span>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="kicker mb-1.5">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            ADAPTIVE BIAS (TỰ HỌC)
-          </div>
-          <div class="flex justify-between items-end gap-2 flex-wrap">
-            <span id="biasNow" class="mono big-num" style="color:var(--violet)">0</span>
-            <span class="dim" style="font-size:11px">Số lần điều chỉnh: <b id="biasAdj" class="mono" style="color:var(--violet)">0</b></span>
-          </div>
-        </div>
-      </div>
-    </section>
+  <!-- HEADER -->
+  <div class="header">
+    <h1>🎲 XÚC XẮC TIÊN TRI</h1>
+    <p>Seed động: Timestamp · Nhiệt độ thực tế · Tọa độ GPS → MD5 → Dự đoán XOÀI / TÁO</p>
   </div>
 
-  <!-- ========== LOG ========== -->
-  <section class="panel col-log">
-    <div class="panel-h">
-      <span class="panel-ico">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 9 8 9"/><path d="M12 7v5l3 2"/></svg>
-      </span>
-      <h2>NHẬT KÝ TEST — LƯU TRỮ KHÔNG GIỚI HẠN</h2>
-      <span id="logCount" class="badge b-live">0</span>
-      <button id="csvBtn" class="btn btn-ghost ml-auto">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="6 11 12 17 18 11"/><line x1="4" y1="21" x2="20" y2="21"/></svg>
-        TẢI LỊCH SỬ (CSV)
-      </button>
+  <!-- HERO PREDICTION -->
+  <div class="pred-hero" id="predHero">
+    <div class="pred-label">DỰ ĐOÁN CỬA</div>
+    <div class="pred-result" id="predResult">—</div>
+    <div class="dice-row" id="diceRow">
+      <div class="die" id="d1">?</div>
+      <div class="die" id="d2">?</div>
+      <div class="die" id="d3">?</div>
     </div>
-    <div class="log-scroll">
+    <div class="pred-sub">
+      <span>Tổng thô: <strong id="diceSum">—</strong></span>
+      <span>Tin cậy: <strong id="confidence">—%</strong></span>
+      <span>Bias cơ chế: <strong id="biasActive">1</strong></span>
+    </div>
+    <div class="confidence-bar"><div class="confidence-fill" id="confFill" style="width:50%"></div></div>
+  </div>
+
+  <!-- CLOCK & PAUSE -->
+  <div class="card">
+    <div class="clock-row">
+      <div class="clock">
+        🕐 <span id="clockDisplay">00:00:00.000</span>
+        <span class="paused-badge" id="pausedBadge">PAUSED</span>
+      </div>
+      <button class="btn btn-pause" id="btnPause" onclick="togglePause()">⏸ Tạm dừng</button>
+    </div>
+  </div>
+
+  <!-- MD5 LIVE -->
+  <div class="card">
+    <div class="card-label">🔑 MD5 Hash (Seed hiện tại)</div>
+    <div class="md5-display" id="md5Live" title="Nhấn để chọn toàn bộ">—</div>
+    <div style="margin-top:8px" class="seed-info" id="seedInfo">Seed: chờ dữ liệu...</div>
+  </div>
+
+  <!-- MD5 MANUAL INPUT -->
+  <div class="card">
+    <div class="section-head" id="headManual" onclick="toggleSection('bodyManual','headManual')">
+      <span class="card-label" style="margin:0">✏️ Dán MD5 thủ công</span>
+      <span class="arrow">▼</span>
+    </div>
+    <div class="section-body" id="bodyManual">
+      <div class="input-group" style="margin-top:10px">
+        <label>Dán chuỗi MD5 (32 ký tự hex) — phân tích ngay khi dán đủ 32 ký tự</label>
+        <textarea class="md5-input" id="md5ManualInput" placeholder="Dán MD5 vào đây..."></textarea>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:8px">
+        <div id="manualResult" class="seed-info" style="flex:1;display:none"></div>
+        <button class="btn btn-pause" onclick="clearManualMD5()" style="flex:none;min-width:auto;padding:8px 12px;font-size:.75rem">✕ Xóa</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- WEATHER & LOCATION -->
+  <div class="card">
+    <div class="section-head" id="headWeather" onclick="toggleSection('bodyWeather','headWeather')">
+      <span class="card-label" style="margin:0">🌡️ Vị trí & Thời tiết</span>
+      <span class="arrow">▼</span>
+    </div>
+    <div class="section-body" id="bodyWeather">
+      <div style="margin-top:10px;display:flex;flex-direction:column;gap:10px">
+        <div class="weather-status">
+          <div class="dot dot-warn" id="weatherDot"></div>
+          <span id="weatherText">Đang xin quyền vị trí...</span>
+        </div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>Vĩ độ (Latitude)</label>
+            <input type="number" id="inputLat" step="any" placeholder="21.0285" oninput="onGeoManual()"/>
+          </div>
+          <div class="input-group">
+            <label>Kinh độ (Longitude)</label>
+            <input type="number" id="inputLon" step="any" placeholder="105.8542" oninput="onGeoManual()"/>
+          </div>
+        </div>
+        <div class="input-group">
+          <label>Nhiệt độ thủ công (°C) — ghi đè tự động</label>
+          <input type="number" id="inputTemp" step="0.1" placeholder="30.0" oninput="onTempManual()"/>
+        </div>
+        <button class="btn btn-primary" onclick="fetchLocation()" style="width:100%">📍 Cập nhật vị trí & nhiệt độ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FEEDBACK -->
+  <div class="card">
+    <div class="card-label">📊 Đánh giá kết quả thực tế</div>
+    <p style="font-size:.75rem;color:var(--text-dim);margin-bottom:10px">Sau khi gieo xúc xắc thật → so sánh với dự đoán đã khóa → bấm kết quả:</p>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;margin-bottom:10px;font-size:.75rem;">
+      Dự đoán đã khóa: <strong id="lockedPredDisplay" style="color:var(--text-dim)">Chưa có (bấm Tạm dừng hoặc dán MD5 để khóa)</strong>
+    </div>
+    <div class="ctrl-row">
+      <button class="btn btn-ok" onclick="feedback(true)">✅ ĐÚNG — Khớp thực tế</button>
+      <button class="btn btn-err" onclick="feedback(false)">❌ SAI — Lệch thực tế</button>
+    </div>
+    <div id="feedbackHint" style="margin-top:8px;font-size:.7rem;color:var(--muted)">Chưa có phản hồi nào được ghi nhận.</div>
+  </div>
+
+  <!-- ADAPTIVE BIAS -->
+  <div class="card">
+    <div class="section-head" id="headBias" onclick="toggleSection('bodyBias','headBias')">
+      <span class="card-label" style="margin:0">⚙️ Adaptive Bias — Cơ chế tự điều chỉnh</span>
+      <span class="arrow">▼</span>
+    </div>
+    <div class="section-body" id="bodyBias">
+      <div class="bias-panel" style="margin-top:10px">
+        <div class="bias-row">
+          <span>Cơ chế 1 — Đảo ngược dự đoán<span class="bias-badge badge-on" id="b1badge">THƯỜNG TRỰC</span></span>
+          <span style="font-family:var(--mono);font-size:.7rem">SAI liên tiếp: <strong id="b1streak">0</strong>/3</span>
+        </div>
+        <div class="bias-row">
+          <span>Cơ chế 2 — Dịch ngưỡng cut-off<span class="bias-badge" id="b2badge">OFF</span></span>
+          <span style="font-family:var(--mono);font-size:.7rem">Cut-off: <strong id="b2cutoff">10.5</strong></span>
+        </div>
+        <div class="bias-row">
+          <span>Cơ chế 3 — Offset tổng điểm<span class="bias-badge" id="b3badge">OFF</span></span>
+          <span style="font-family:var(--mono);font-size:.7rem">Offset: <strong id="b3offset">+0</strong></span>
+        </div>
+        <div class="bias-row">
+          <span style="color:var(--text-dim)">SAI liên tiếp hiện tại</span>
+          <span id="consecutiveFail" style="font-family:var(--mono);color:var(--err);font-weight:700">0</span>
+        </div>
+        <div style="margin-top:10px">
+          <button class="btn btn-pause" onclick="resetBias()" style="width:100%;font-size:.75rem">🔄 Reset Bias về mặc định</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="card">
+    <div class="card-label">📈 Thống kê tích lũy</div>
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-val" id="statTotal">0</div><div class="stat-lbl">Tổng lượt</div></div>
+      <div class="stat-box"><div class="stat-val" id="statOk" style="color:var(--ok)">0</div><div class="stat-lbl">Đúng</div></div>
+      <div class="stat-box"><div class="stat-val" id="statFail" style="color:var(--err)">0</div><div class="stat-lbl">Sai</div></div>
+      <div class="stat-box"><div class="stat-val" id="statAcc">—</div><div class="stat-lbl">Chính xác</div></div>
+    </div>
+  </div>
+
+  <!-- LOG TABLE -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <div class="card-label" style="margin:0">📋 Lịch sử Log (<span id="logCount">0</span> lượt)</div>
+      <button class="btn btn-csv" onclick="exportCSV()" style="flex:none;min-width:auto;padding:7px 14px">⬇ Tải CSV</button>
+    </div>
+    <div class="log-wrap">
       <table class="log-table">
         <thead>
           <tr>
-            <th>#</th><th>Thời gian</th><th>Nguồn</th><th>Nhiệt độ / Tọa độ</th>
-            <th>MD5 Hash</th><th>Xúc xắc</th><th>Σ</th><th>Dự đoán</th>
-            <th>Tin cậy</th><th>Đ/S</th><th>Bias</th>
+            <th>#</th><th>Thời gian</th><th>°C</th>
+            <th>MD5 (8 ký tự đầu)</th><th>🎲</th><th>Σ</th>
+            <th>Dự đoán</th><th>Tin cậy</th><th>Đánh giá</th>
           </tr>
         </thead>
         <tbody id="logBody">
-          <tr id="logEmpty">
-            <td colspan="11" class="empty-cell">
-              Chưa có lượt test nào — nhấn <b>ĐÚNG</b> hoặc <b>SAI</b> để bắt đầu ghi nhận.<br>
-              Toàn bộ dữ liệu thử nghiệm được giữ nguyên vẹn (không có chức năng xóa) và có thể xuất CSV bất kỳ lúc nào.
-            </td>
-          </tr>
+          <tr><td colspan="9" class="log-empty">Hệ thống đang khởi động...</td></tr>
         </tbody>
       </table>
     </div>
-  </section>
+  </div>
 
-</main>
-
-<footer class="max-w-[1400px] mx-auto px-4 pb-8 pt-2">
-  <p class="dim text-center" style="font-size:11px;line-height:1.8;letter-spacing:.03em">
-    SEED DICE LAB v1.0 — Seed động: Timestamp(ms) + Nhiệt độ Open-Meteo (không cần API Key) + Tọa độ người dùng · Băm MD5 (CryptoJS) · Xúc xắc công bằng bằng rejection sampling mod 6 · Adaptive Bias tự điều chỉnh ngưỡng phân loại.<br>
-    Công cụ mô phỏng &amp; nghiên cứu dữ liệu — kết quả mang tính ngẫu nhiên, không dùng để cá cược.
-  </p>
-</footer>
-
-<div id="toasts"></div>
+</div><!-- .app -->
+<div class="toast" id="toast"></div>
 
 <script>
-'use strict';
+// ================================================================
+// STATE
+// ================================================================
+const S = {
+  lat: null, lon: null, temp: 30,
+  paused: false,
+  startTime: Date.now(),
+  currentMD5: '',
+  currentPred: null,    // latest live prediction object
+  lockedPred: null,     // snapshot locked for feedback (deep copy)
+  manualMD5Mode: false,
 
-/* ============================================================
-   STATE
-============================================================ */
-const state = {
-  running: true,
-  mode: 'live',               // 'live' | 'manual'
-  ts: 0,
-  temp: 30,
-  lat: null,
-  lng: null,
-  tempManual: false,
-  bias: 0,
-  adjusts: 0,
-  weatherSource: 'Mặc định',
-  weatherUpdatedAt: null,
-  seed: '',
-  md5: '',
-  dice: [1,1,1],
-  usedBytes: [],
-  sum: 3,
-  side: 'XOÀI',
-  conf: 50,
-  manualMd5: null,
-  logs: [],
-  correct: 0,
-  wrong: 0,
-  lastDice: [0,0,0]
+  bias: {
+    consecutiveFail: 0,
+    mechanism: 1,        // 1, 2, or 3
+    invert: false,       // mech-1: flip XOÀI↔TÁO
+    cutoff: 10.5,        // mech-2: adjustable threshold
+    offset: 0,           // mech-3: additive to raw sum
+    mech1InvertCount: 0, // how many times mech-1 has inverted
+  },
+
+  log: [],
+  stats: { total:0, ok:0, fail:0 },
 };
 
-const BIAS_MIN = -10, BIAS_MAX = 10, BOUND_MIN = 6, BOUND_MAX = 15;
-const LS_KEY = 'seedDiceLab_v1';
-
-const $ = id => document.getElementById(id);
-
-/* ============================================================
-   UTILITIES
-============================================================ */
-const pad2 = n => String(n).padStart(2,'0');
-function nowTime(){
-  const d = new Date();
-  return pad2(d.getHours())+':'+pad2(d.getMinutes())+':'+pad2(d.getSeconds());
+// ================================================================
+// PERSISTENCE  (localStorage + CSV)
+// ================================================================
+function save(){
+  try{
+    localStorage.setItem('xxs_log',   JSON.stringify(S.log));
+    localStorage.setItem('xxs_stats', JSON.stringify(S.stats));
+    localStorage.setItem('xxs_bias',  JSON.stringify(S.bias));
+  }catch(_){}
 }
-function fmtBias(b){ return (b>0?'+':'')+b; }
-function accPct(){ return state.logs.length ? (state.correct/state.logs.length*100) : 0; }
-function boundary(){
-  return Math.min(BOUND_MAX, Math.max(BOUND_MIN, 10.5 - state.bias*0.5));
-}
-function md5hex(str){
-  return CryptoJS.MD5(str).toString();
-}
-function toast(msg, type){
-  const wrap = $('toasts');
-  const el = document.createElement('div');
-  el.className = 'toast ' + (type||'');
-  el.textContent = msg;
-  wrap.appendChild(el);
-  setTimeout(()=>{ el.classList.add('out'); setTimeout(()=>el.remove(), 320); }, 3400);
+function load(){
+  try{
+    const l = localStorage.getItem('xxs_log');
+    const st= localStorage.getItem('xxs_stats');
+    const b = localStorage.getItem('xxs_bias');
+    if(l)  S.log   = JSON.parse(l);
+    if(st) S.stats = JSON.parse(st);
+    if(b)  S.bias  = Object.assign({}, S.bias, JSON.parse(b));
+  }catch(_){}
 }
 
-/* ============================================================
-   CORE: SEED → MD5 → DICE (fair rejection sampling mod 6)
-============================================================ */
-function buildSeed(ts){
-  const c = (state.lat===null || state.lng===null) ? 'N/A' : (state.lat+','+state.lng);
-  return ts + '|' + state.temp + '°C|' + c + '|B' + state.bias;
-}
-
-/* Trích 3 xúc xắc từ các byte hex của MD5.
-   Rejection sampling: chỉ nhận byte < 252 vì 256 % 6 = 4,
-   nhờ đó phân phối 1..6 công bằng tuyệt đối, không lệch tỷ lệ. */
-function hashToDice(hex){
-  const dice = [], used = [];
-  let i = 0;
-  while (dice.length < 3 && i < 16){
-    const b = parseInt(hex.substr(i*2,2), 16);
-    if (b < 252){ dice.push((b % 6) + 1); used.push(i+1); }
-    i++;
+// ================================================================
+// DICE EXTRACTION  — unbiased modulo via 4-byte pool per die
+// ================================================================
+// FIX #1: Use 4 consecutive hex chars (2 bytes = 0-65535) per die.
+// 65535 % 6 leaves remainder only 3 values (0-2) with freq 10923
+// vs 3-5 with freq 10922 → bias < 0.01% — acceptable.
+function extractDice(md5){
+  function twoBytes(hexStr, offset){
+    return parseInt(hexStr.slice(offset, offset+4), 16); // 0-65535
   }
-  while (dice.length < 3){
-    const b = parseInt(hex.substr((i % 16)*2,2), 16);
-    dice.push((b % 6) + 1);
-    used.push((i % 16) + 1);
-    i++;
-  }
-  return { dice, used };
+  const d1 = (twoBytes(md5,  0) % 6) + 1;
+  const d2 = (twoBytes(md5, 10) % 6) + 1;
+  const d3 = (twoBytes(md5, 20) % 6) + 1;
+  return { d1, d2, d3 };
 }
 
-function classify(sum){
-  const b = boundary();
-  const side = sum <= b ? 'XOÀI' : 'TÁO';
-  const acc = state.logs.length ? state.correct/state.logs.length : 0.5;
-  const margin = Math.abs(sum - b);                 // càng xa ngưỡng → càng tự tin
-  let conf = 50 + (margin/8)*42 + (acc - 0.5)*10;   // + độ chính xác lịch sử
-  conf = Math.max(50, Math.min(98, conf));
-  return { side, conf: +conf.toFixed(1) };
+// ================================================================
+// PREDICTION LOGIC
+// ================================================================
+function calcPred(d1, d2, d3){
+  const B   = S.bias;
+  const raw = d1 + d2 + d3;                        // 3-18 no offset
+  const adj = Math.max(3, Math.min(18, raw + B.offset)); // clamped
+
+  let pred = adj <= B.cutoff ? 'XOÀI' : 'TÁO';
+  if(B.invert) pred = pred === 'XOÀI' ? 'TÁO' : 'XOÀI';
+
+  // Confidence: how far raw is from exact centre (10.5)
+  const dist = Math.abs(raw - 10.5);               // 0..7.5
+  const conf = Math.round(50 + (dist / 7.5) * 45); // 50..95 %
+
+  return { pred, raw, adj, conf };
 }
 
-function computeFor(ts){
-  state.ts = ts;
-  state.seed = buildSeed(ts);
-  state.md5 = md5hex(state.seed);
-  const r = hashToDice(state.md5);
-  state.dice = r.dice;
-  state.usedBytes = r.used;
-  state.sum = state.dice[0] + state.dice[1] + state.dice[2];
-  const c = classify(state.sum);
-  state.side = c.side;
-  state.conf = c.conf;
+// ================================================================
+// SEED  &  HASH
+// ================================================================
+function buildSeed(ts, temp, lat, lon){
+  const la = lat  !== null ? lat.toFixed(6)  : 'null';
+  const lo = lon  !== null ? lon.toFixed(6)  : 'null';
+  return `${ts}|${parseFloat(temp).toFixed(2)}|${la},${lo}`;
+}
+function md5Of(seed){ return CryptoJS.MD5(seed).toString(); }
+
+// ================================================================
+// UI — prediction display
+// ================================================================
+function renderPred(d1,d2,d3,pred,raw,conf,md5){
+  const cls = pred==='XOÀI' ? 'xoai' : 'tao';
+  const hero = document.getElementById('predHero');
+  hero.className = 'pred-hero ' + cls;
+  document.getElementById('predResult').textContent = pred;
+  document.getElementById('d1').textContent = d1;
+  document.getElementById('d2').textContent = d2;
+  document.getElementById('d3').textContent = d3;
+  document.getElementById('diceSum').textContent   = raw;
+  document.getElementById('confidence').textContent= conf + '%';
+  document.getElementById('confFill').style.width  = conf + '%';
+  document.getElementById('biasActive').textContent= S.bias.mechanism;
+  document.getElementById('md5Live').textContent   = md5;
 }
 
-/* ============================================================
-   RENDER HELPERS
-============================================================ */
-const PIPS = {
-  1:[5],
-  2:[1,4],
-  3:[1,5,4],
-  4:[1,2,3,4],
-  5:[1,2,5,3,4],
-  6:[1,2,6,3,4,7]
-};
+function renderBias(){
+  const B = S.bias;
+  document.getElementById('b1streak').textContent      = B.consecutiveFail;
+  document.getElementById('consecutiveFail').textContent= B.consecutiveFail;
+  document.getElementById('b2cutoff').textContent      = B.cutoff.toFixed(1);
+  document.getElementById('b3offset').textContent      = (B.offset >= 0 ? '+' : '') + B.offset;
+  document.getElementById('biasActive').textContent    = B.mechanism;
 
-function setDice(el, v){
-  const pips = el.querySelectorAll('.pip');
-  const on = PIPS[v] || [];
-  pips.forEach((p,i)=>p.classList.toggle('on', on.includes(i+1)));
-}
+  const m = B.mechanism;
+  const b1 = document.getElementById('b1badge');
+  b1.className = 'bias-badge badge-on';
+  b1.textContent= B.invert ? '↕ ĐANG ĐẢO' : 'THƯỜNG TRỰC';
 
-function renderEngine(){
-  $('tsVal').textContent = state.mode==='manual' ? (state.ts + ' (tạm khóa)') : state.ts;
-  $('tempVal').textContent = (+state.temp).toFixed(1);
-  $('tempBadge').textContent = state.weatherSource;
-  $('coordVal').textContent = (state.lat===null||state.lng===null)
-    ? 'N/A — mặc định 30°C'
-    : (+state.lat).toFixed(4) + ', ' + (+state.lng).toFixed(4);
-  $('seedPreview').textContent = state.mode==='manual'
-    ? 'MD5 thủ công — ' + state.manualMd5
-    : state.seed;
-  $('biasVal').textContent = fmtBias(state.bias);
-  $('thrVal').textContent = boundary().toFixed(1);
-  // đồng bộ ô nhập nhiệt độ khi không gõ
-  if (document.activeElement !== $('tempInput')){
-    $('tempInput').value = (+state.temp).toFixed(1);
-  }
-}
+  const b2 = document.getElementById('b2badge');
+  b2.className = 'bias-badge ' + (m >= 2 ? 'badge-on' : 'badge-off');
+  b2.textContent= m >= 2 ? 'ON' : 'OFF';
 
-let byteSpans = [];
-function renderPredict(){
-  // MD5 bytes
-  for (let i=0;i<16;i++){
-    byteSpans[i].textContent = state.md5.substr(i*2,2);
-    byteSpans[i].classList.toggle('used', state.usedBytes.includes(i+1));
-  }
-  $('usedLegend').textContent = '#' + state.usedBytes.join(', #');
-
-  // Dice
-  for (let i=0;i<3;i++){
-    if (state.lastDice[i] !== state.dice[i]){
-      state.lastDice[i] = state.dice[i];
-      setDice(diceEls[i], state.dice[i]);
-    }
-  }
-  $('diceWrap').dataset.side = state.side;
-
-  // Sum + side
-  $('sumVal').textContent = state.sum;
-  const sb = $('sideBadge');
-  sb.textContent = state.side;
-  sb.className = 'side-badge side-' + state.side;
-
-  // Confidence
-  $('confPct').textContent = state.conf.toFixed(1) + '%';
-  const fill = $('confFill');
-  fill.style.width = state.conf + '%';
-  fill.style.background = state.side==='XOÀI'
-    ? 'linear-gradient(90deg,rgba(251,191,36,.30),var(--mango))'
-    : 'linear-gradient(90deg,rgba(251,113,133,.30),var(--apple))';
-
-  // Spectrum marker 3..18
-  $('specMarker').style.left = ((state.sum - 3)/15*100) + '%';
-  $('specMid').textContent = boundary().toFixed(1);
+  const b3 = document.getElementById('b3badge');
+  b3.className = 'bias-badge ' + (m >= 3 ? 'badge-on' : 'badge-off');
+  b3.textContent= m >= 3 ? 'ON' : 'OFF';
 }
 
 function renderStats(){
-  const t = state.logs.length;
-  $('stTotal').textContent = t;
-  $('stCorrect').textContent = state.correct;
-  $('stWrong').textContent = state.wrong;
-  const a = accPct();
-  $('stAcc').textContent = a.toFixed(1) + '%';
-  const bar = $('accBar');
-  bar.style.width = a + '%';
-  bar.style.background = a >= 50
-    ? 'linear-gradient(90deg,rgba(52,211,153,.4),var(--live))'
-    : 'linear-gradient(90deg,rgba(251,113,133,.4),var(--apple))';
-
-  $('wTemp').textContent = (+state.temp).toFixed(1) + '°C';
-  const wsrc = $('wSource');
-  wsrc.textContent = state.weatherSource;
-  wsrc.className = 'badge ' + (state.weatherSource==='Open-Meteo' ? 'b-live' : state.weatherSource==='Thủ công' ? 'b-tay' : '');
-  $('wCoords').textContent = (state.lat===null||state.lng===null) ? 'N/A' : (+state.lat).toFixed(4)+', '+(+state.lng).toFixed(4);
-  $('wUpdated').textContent = state.weatherUpdatedAt || '—';
-
-  $('biasNow').textContent = fmtBias(state.bias);
-  $('biasAdj').textContent = state.adjusts;
-  $('logCount').textContent = state.logs.length;
+  const s = S.stats;
+  document.getElementById('statTotal').textContent = s.total;
+  document.getElementById('statOk').textContent    = s.ok;
+  document.getElementById('statFail').textContent  = s.fail;
+  document.getElementById('statAcc').textContent   =
+    s.total > 0 ? Math.round(s.ok / s.total * 100) + '%' : '—';
+  document.getElementById('logCount').textContent  = S.log.length;
 }
 
-function updateStatus(){
-  const pill = $('statusPill'), dot = $('statusDot'), mb = $('modeBadge');
-  if (state.mode==='manual'){
-    pill.textContent = 'MD5 TAY';
-    dot.className = 'dot violet';
-    mb.textContent = 'MD5 THỦ CÔNG';
-    mb.className = 'badge b-tay ml-auto';
-  } else if (state.running){
-    pill.textContent = 'LIVE';
-    dot.className = 'dot live';
-    mb.textContent = 'LIVE';
-    mb.className = 'badge b-live ml-auto';
-  } else {
-    pill.textContent = 'PAUSED';
-    dot.className = 'dot amber';
-    mb.textContent = 'TẠM DỪNG';
-    mb.className = 'badge ml-auto';
+function renderLog(){
+  const tbody = document.getElementById('logBody');
+  if(!S.log.length){
+    tbody.innerHTML = '<tr><td colspan="9" class="log-empty">Chưa có dữ liệu.</td></tr>';
+    return;
   }
-  const rolling = state.running && state.mode==='live';
-  diceEls.forEach(d => d.classList.toggle('rolling', rolling));
-  $('pauseLabel').textContent = state.running ? 'TẠM DỪNG' : 'TIẾP TỤC';
-  $('pauseBtn').disabled = (state.mode==='manual');
-  $('backLiveBtn').style.display = state.mode==='manual' ? 'inline-flex' : 'none';
+  const show = S.log.slice().reverse().slice(0, 300);
+  let html = '';
+  show.forEach((e, i) => {
+    const n   = S.log.length - i;
+    const pc  = e.pred==='XOÀI' ? 'tag-xoai' : 'tag-tao';
+    const ev  = e.eval === null
+      ? '<span class="tag-none">—</span>'
+      : e.eval
+        ? '<span class="tag-ok">✅</span>'
+        : '<span class="tag-err">❌</span>';
+    html += `<tr>
+      <td>${n}</td>
+      <td>${e.time}</td>
+      <td>${parseFloat(e.temp).toFixed(1)}°</td>
+      <td style="font-family:var(--mono)">${e.md5.slice(0,8)}…</td>
+      <td>${e.d1}·${e.d2}·${e.d3}</td>
+      <td>${e.raw}</td>
+      <td class="${pc}">${e.pred}</td>
+      <td>${e.conf}%</td>
+      <td>${ev}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+  document.getElementById('logCount').textContent = S.log.length;
 }
 
-/* ============================================================
-   LIVE LOOP — requestAnimationFrame, timestamp nhảy theo ms
-============================================================ */
-function tick(){
-  if (state.running && state.mode==='live' && typeof CryptoJS !== 'undefined'){
-    computeFor(Date.now());
-    renderEngine();
-    renderPredict();
+function renderLockedPred(){
+  const el = document.getElementById('lockedPredDisplay');
+  if(!S.lockedPred){
+    el.textContent = 'Chưa có (bấm Tạm dừng hoặc dán MD5 để khóa)';
+    el.style.color = 'var(--text-dim)';
+    return;
   }
+  const lp = S.lockedPred;
+  const col = lp.pred === 'XOÀI' ? 'var(--xoai)' : 'var(--tao)';
+  el.innerHTML = `<span style="color:${col};font-weight:700">${lp.pred}</span> · Σ=${lp.raw} · 🎲${lp.d1}·${lp.d2}·${lp.d3} · ${lp.conf}% · <span style="font-family:var(--mono);font-size:.68rem">${lp.md5.slice(0,12)}…</span>`;
+}
+
+// ================================================================
+// REAL-TIME LOOP — requestAnimationFrame
+// FIX #4: maybeLog() guards against paused state
+// ================================================================
+let rafLast = 0;
+let logTimer = 0;
+
+function tick(ts){
   requestAnimationFrame(tick);
-}
 
-/* ============================================================
-   FEEDBACK — ĐÚNG / SAI + ADAPTIVE BIAS
-============================================================ */
-function adaptBias(predictedSide){
-  // SAI: kết quả thực tế là cửa ngược lại → dịch bias sang cửa đó
-  if (predictedSide === 'XOÀI') state.bias = Math.min(BIAS_MAX, state.bias + 1);
-  else state.bias = Math.max(BIAS_MIN, state.bias - 1);
-  state.adjusts++;
-}
+  // Clock always ticks (FIX: pause only stops Seed updates)
+  const elapsed = Date.now() - S.startTime;
+  const hh = Math.floor(elapsed / 3600000);
+  const mm = Math.floor((elapsed % 3600000) / 60000);
+  const ss = Math.floor((elapsed % 60000) / 1000);
+  const ms = elapsed % 1000;
+  document.getElementById('clockDisplay').textContent =
+    pad(hh) + ':' + pad(mm) + ':' + pad(ss) + '.' + padMs(ms);
 
-function record(verdict){
-  if (typeof CryptoJS === 'undefined'){ toast('CryptoJS chưa sẵn sàng — không thể ghi nhận','err'); return; }
-  const n = state.logs.length + 1;
-  const row = {
-    id: n,
-    time: nowTime(),
-    ts: state.ts,
-    temp: +(+state.temp).toFixed(1),
-    lat: state.lat,
-    lng: state.lng,
-    md5: state.md5,
-    dice: [...state.dice],
-    sum: state.sum,
-    side: state.side,
-    conf: state.conf,
-    bias: state.bias,
-    source: state.mode==='manual' ? 'MD5 thủ công' : 'Seed động',
-    verdict
-  };
-  state.logs.push(row);
-  if (verdict === 'D'){
-    state.correct++;
-  } else {
-    state.wrong++;
-    adaptBias(row.side);
-  }
-  persist();
-  renderStats();
-  appendLogRow(row);
-  if (verdict === 'D'){
-    toast('Lượt #'+n+' — ĐÚNG (khớp thực tế). Độ chính xác tích lũy: ' + accPct().toFixed(1) + '%', 'ok');
-  } else {
-    toast('Lượt #'+n+' — SAI (lệch thực tế). Weight Bias đã điều chỉnh → ' + fmtBias(state.bias) + ' (ngưỡng ' + boundary().toFixed(1) + ')', 'warn');
-  }
-}
+  if(S.paused)        return;
+  if(S.manualMD5Mode) return;
+  if(ts - rafLast < 60) return; // ~16fps for readability
+  rafLast = ts;
 
-/* ============================================================
-   LOG TABLE (unlimited, no delete) + CSV EXPORT
-============================================================ */
-function appendLogRow(r){
-  const empty = $('logEmpty');
-  if (empty) empty.remove();
+  const now  = Date.now();
+  const seed = buildSeed(now, S.temp, S.lat, S.lon);
+  const hash = md5Of(seed);
+  S.currentMD5 = hash;
 
-  const tbody = $('logBody');
-  const tr = document.createElement('tr');
+  const {d1,d2,d3}   = extractDice(hash);
+  const {pred,raw,adj,conf} = calcPred(d1,d2,d3);
 
-  const tdNum = document.createElement('td');
-  tdNum.className = 'mono dim';
-  tdNum.textContent = r.id;
+  S.currentPred = { d1,d2,d3, pred, raw, adj, conf, md5:hash,
+    temp:S.temp, lat:S.lat, lon:S.lon,
+    time: fmtTime(new Date(now)) };
 
-  const tdTime = document.createElement('td');
-  tdTime.className = 'mono';
-  tdTime.textContent = r.time;
+  renderPred(d1,d2,d3,pred,raw,conf,hash);
+  document.getElementById('seedInfo').innerHTML =
+    `Seed: <strong>${seed.slice(0,70)}${seed.length>70?'…':''}</strong>`;
 
-  const tdSrc = document.createElement('td');
-  const srcBadge = document.createElement('span');
-  srcBadge.className = 'badge ' + (r.source==='Seed động' ? 'b-live' : 'b-tay');
-  srcBadge.textContent = r.source==='Seed động' ? 'SEED' : 'TAY';
-  tdSrc.appendChild(srcBadge);
-
-  const tdEnv = document.createElement('td');
-  tdEnv.innerHTML = '<div class="mono">'+r.temp.toFixed(1)+'°C</div><div class="dim" style="font-size:10.5px">'+(r.lat===null||r.lng===null?'N/A':(+r.lat).toFixed(4)+', '+(+r.lng).toFixed(4))+'</div>';
-
-  const tdMd5 = document.createElement('td');
-  tdMd5.className = 'md5-cell mono';
-  tdMd5.textContent = r.md5.slice(0,8) + '…' + r.md5.slice(-4);
-  tdMd5.title = r.md5;
-  tdMd5.style.cursor = 'help';
-
-  const tdDice = document.createElement('td');
-  tdDice.className = 'mono';
-  tdDice.textContent = r.dice.join(' · ');
-
-  const tdSum = document.createElement('td');
-  tdSum.className = 'mono';
-  tdSum.style.fontWeight = '800';
-  tdSum.textContent = r.sum;
-
-  const tdSide = document.createElement('td');
-  const sideBadge = document.createElement('span');
-  sideBadge.className = 'badge ' + (r.side==='XOÀI' ? 'b-mango' : 'b-apple');
-  sideBadge.textContent = r.side;
-  tdSide.appendChild(sideBadge);
-
-  const tdConf = document.createElement('td');
-  tdConf.className = 'mono dim';
-  tdConf.textContent = r.conf.toFixed(1) + '%';
-
-  const tdVerdict = document.createElement('td');
-  const chip = document.createElement('span');
-  chip.className = 'chip ' + (r.verdict==='D' ? 'd' : 's');
-  chip.innerHTML = (r.verdict==='D'
-    ? '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 9 17 20 6"/></svg>'
-    : '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>')
-    + (r.verdict==='D' ? ' Đ' : ' S');
-  tdVerdict.appendChild(chip);
-
-  const tdBias = document.createElement('td');
-  tdBias.className = 'mono dim';
-  tdBias.textContent = fmtBias(r.bias);
-
-  tr.append(tdNum, tdTime, tdSrc, tdEnv, tdMd5, tdDice, tdSum, tdSide, tdConf, tdVerdict, tdBias);
-  tbody.prepend(tr);   // mới nhất lên đầu, giữ nguyên mọi dòng cũ
-}
-
-function stamp(){
-  const d = new Date();
-  return d.getFullYear() + pad2(d.getMonth()+1) + pad2(d.getDate()) + '-' + pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds());
-}
-
-function exportCSV(){
-  if (!state.logs.length){ toast('Chưa có lượt test nào để xuất CSV','warn'); return; }
-  const H = ['STT','ThoiGian','Nguon','Timestamp_ms','NhietDo_C','ViDo','KinhDo','MD5','Dice1','Dice2','Dice3','Tong','DuDoan','DoTinCay_%','DanhGia','Bias'];
-  const esc = v => '"' + String(v===null||v===undefined ? '' : v).replace(/"/g,'""') + '"';
-  const lines = state.logs.map((r,i) => [
-    i+1, r.time, r.source, r.ts, r.temp,
-    r.lat===null?'N/A':r.lat, r.lng===null?'N/A':r.lng,
-    r.md5, r.dice[0], r.dice[1], r.dice[2], r.sum,
-    r.side, r.conf, r.verdict==='D'?'ĐÚNG':'SAI', fmtBias(r.bias)
-  ].map(esc).join(','));
-  const csv = '\uFEFF' + H.map(esc).join(',') + '\n' + lines.join('\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8'}));
-  a.download = 'seed-dice-log_' + stamp() + '.csv';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  toast('Đã xuất ' + state.logs.length + ' lượt test ra file CSV','ok');
-}
-
-/* ============================================================
-   MANUAL MD5
-============================================================ */
-function analyzeManual(){
-  const input = $('manualInput');
-  const raw = input.value.trim().toLowerCase();
-  if (!/^[0-9a-f]{32}$/.test(raw)){
-    toast('Chuỗi MD5 không hợp lệ — cần đúng 32 ký tự hex (0-9, a-f)','err');
-    input.classList.remove('shake');
-    void input.offsetWidth;
-    input.classList.add('shake');
-    input.focus();
-    return;
-  }
-  state.mode = 'manual';
-  state.manualMd5 = raw;
-  state.md5 = raw;
-  const r = hashToDice(raw);
-  state.dice = r.dice;
-  state.usedBytes = r.used;
-  state.sum = r.dice[0] + r.dice[1] + r.dice[2];
-  const c = classify(state.sum);
-  state.side = c.side;
-  state.conf = c.conf;
-  state.lastDice = [0,0,0];
-  renderEngine();
-  renderPredict();
-  updateStatus();
-  toast('Đã khóa phân tích MD5 thủ công — nhấn ĐÚNG/SAI để đánh giá lượt này','ok');
-}
-
-function backToLive(){
-  state.mode = 'live';
-  state.manualMd5 = null;
-  updateStatus();
-  toast('Đã quay về dòng Seed động','ok');
-}
-
-/* ============================================================
-   GEOLOCATION + OPEN-METEO (free, no API key)
-============================================================ */
-function fetchWeather(lat, lng){
-  state.weatherSource = 'Open-Meteo';
-  renderStats();
-  fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lng + '&current_weather=true')
-    .then(r => r.json())
-    .then(d => {
-      if (d && d.current_weather && typeof d.current_weather.temperature === 'number'){
-        if (!state.tempManual){
-          state.temp = d.current_weather.temperature;
-          $('tempInput').value = state.temp.toFixed(1);
-        }
-        state.weatherSource = 'Open-Meteo';
-        state.weatherUpdatedAt = nowTime();
-        renderEngine();
-        renderStats();
-        toast('Nhiệt độ thực tế ' + state.temp.toFixed(1) + '°C từ Open-Meteo','ok');
-      } else {
-        throw new Error('bad payload');
+  // FIX #4: auto-log only when NOT paused
+  if(!S.paused && !S.manualMD5Mode){
+    const nowMs = Date.now();
+    if(nowMs - logTimer >= 2000){
+      logTimer = nowMs;
+      const last = S.log[S.log.length - 1];
+      if(!last || last.md5 !== hash){
+        S.log.push({...S.currentPred, eval: null});
+        renderLog();
+        save();
       }
-    })
-    .catch(() => {
-      if (!state.tempManual){ state.temp = 30; }
-      state.weatherSource = 'Mặc định';
-      renderEngine(); renderStats();
-      toast('Không lấy được thời tiết — đang dùng 30°C','warn');
-    });
+    }
+  }
+}
+requestAnimationFrame(tick);
+
+// ================================================================
+// PAUSE / RESUME
+// FIX #3: deep copy for lockedPred via spread
+// ================================================================
+function togglePause(){
+  S.paused = !S.paused;
+  const btn   = document.getElementById('btnPause');
+  const badge = document.getElementById('pausedBadge');
+  if(S.paused){
+    btn.textContent = '▶ Tiếp tục';
+    badge.classList.add('show');
+    // Deep-copy current prediction as the locked snapshot
+    if(S.currentPred){
+      S.lockedPred = { ...S.currentPred };
+      renderLockedPred();
+    }
+    showToast('⏸ Đã tạm dừng — đồng hồ vẫn chạy');
+  } else {
+    btn.textContent = '⏸ Tạm dừng';
+    badge.classList.remove('show');
+    showToast('▶ Đã tiếp tục');
+  }
 }
 
-function locateUser(){
-  if (!navigator.geolocation){
-    toast('Trình duyệt không hỗ trợ Geolocation','err');
+// ================================================================
+// MANUAL MD5 INPUT — analyze on input, instantly
+// ================================================================
+document.getElementById('md5ManualInput').addEventListener('input', onManualMD5Input);
+
+function onManualMD5Input(){
+  const raw = document.getElementById('md5ManualInput').value.trim().toLowerCase();
+  const res = document.getElementById('manualResult');
+
+  if(!raw){ clearManualMD5(); return; }
+
+  if(!/^[0-9a-f]{32}$/.test(raw)){
+    res.style.display = 'block';
+    res.style.color   = 'var(--err)';
+    res.textContent   = '⚠ Cần đúng 32 ký tự hex (0-9, a-f). Hiện tại: ' + raw.length + ' ký tự.';
+    S.manualMD5Mode = false;
     return;
   }
-  $('coordVal').textContent = 'Đang xin quyền vị trí…';
+
+  // Valid — analyze immediately
+  S.manualMD5Mode = true;
+  const {d1,d2,d3}         = extractDice(raw);
+  const {pred,raw:rSum,adj,conf} = calcPred(d1,d2,d3);
+
+  renderPred(d1,d2,d3,pred,rSum,conf,raw);
+  document.getElementById('seedInfo').innerHTML =
+    `Seed: <strong>MD5 THỦ CÔNG — ${raw}</strong>`;
+
+  S.currentMD5  = raw;
+  S.currentPred = {d1,d2,d3,pred,raw:rSum,adj,conf,md5:raw,
+    temp:S.temp, lat:S.lat, lon:S.lon,
+    time:fmtTime(new Date()), manual:true};
+  S.lockedPred = {...S.currentPred};
+  renderLockedPred();
+
+  // Add to log (unevaluated)
+  const last = S.log[S.log.length-1];
+  if(!last || last.md5 !== raw){
+    S.log.push({...S.currentPred, eval:null});
+    renderLog(); save();
+  }
+
+  const col = pred==='XOÀI' ? '#f5c518' : '#3ec6f5';
+  res.style.display = 'block';
+  res.style.color   = '';
+  res.innerHTML = `✅ MD5 hợp lệ → 🎲 ${d1}·${d2}·${d3} → Σ=${rSum} → <span style="color:${col};font-weight:700">${pred}</span> (${conf}% tin cậy)`;
+}
+
+function clearManualMD5(){
+  document.getElementById('md5ManualInput').value = '';
+  document.getElementById('manualResult').style.display = 'none';
+  S.manualMD5Mode = false;
+  // FIX #5: clear locked pred set by manual mode, resume live
+  if(S.lockedPred && S.lockedPred.manual){
+    S.lockedPred = null;
+    renderLockedPred();
+  }
+  showToast('✕ Đã xóa MD5 thủ công — trở về live');
+}
+
+// ================================================================
+// LOCATION & WEATHER
+// ================================================================
+function fetchLocation(){
+  setWx('warn','Đang xin quyền vị trí...');
+  if(!navigator.geolocation){
+    setWx('err','Trình duyệt không hỗ trợ Geolocation. Dùng mặc định 30°C.');
+    return;
+  }
   navigator.geolocation.getCurrentPosition(
     pos => {
-      state.lat = pos.coords.latitude;
-      state.lng = pos.coords.longitude;
-      state.tempManual = false;
-      state.weatherSource = 'Thiết bị';
-      renderEngine(); renderStats();
-      fetchWeather(state.lat, state.lng);
+      S.lat = pos.coords.latitude;
+      S.lon = pos.coords.longitude;
+      document.getElementById('inputLat').value = S.lat.toFixed(6);
+      document.getElementById('inputLon').value = S.lon.toFixed(6);
+      setWx('warn','Đã lấy tọa độ — đang lấy nhiệt độ...');
+      fetchWeather(S.lat, S.lon);
     },
     () => {
-      state.lat = null; state.lng = null;
-      if (!state.tempManual) state.temp = 30;
-      state.weatherSource = 'Mặc định';
-      renderEngine(); renderStats();
-      toast('Bị từ chối vị trí — dùng nhiệt độ mặc định 30°C','warn');
+      setWx('err','Từ chối quyền vị trí. Dùng mặc định 30°C hoặc nhập thủ công.');
+      S.temp = 30;
     },
-    { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+    { timeout:10000 }
   );
 }
 
-function applyManualCoords(){
-  const input = $('coordInput');
-  const parts = input.value.split(',');
-  const la = parseFloat(parts[0]);
-  const lo = parseFloat(parts[1]);
-  if (parts.length !== 2 || isNaN(la) || isNaN(lo) || la < -90 || la > 90 || lo < -180 || lo > 180){
-    toast('Tọa độ không hợp lệ — định dạng: Vĩ độ, Kinh độ (VD: 10.7769, 106.7009)','err');
-    input.classList.remove('shake');
-    void input.offsetWidth;
-    input.classList.add('shake');
-    input.focus();
-    return;
+function fetchWeather(lat, lon){
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
+  fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      const t = data.current_weather.temperature;
+      S.temp  = t;
+      document.getElementById('inputTemp').value = t;
+      setWx('ok', `🌡 ${t}°C · GPS: ${lat.toFixed(4)}, ${lon.toFixed(4)}`);
+      showToast(`✅ Nhiệt độ thực tế: ${t}°C`);
+    })
+    .catch(() => {
+      setWx('err','Không lấy được thời tiết. Dùng mặc định 30°C.');
+      S.temp = 30;
+    });
+}
+
+function setWx(type, msg){
+  document.getElementById('weatherDot').className = 'dot dot-' + type;
+  document.getElementById('weatherText').textContent = msg;
+}
+
+function onGeoManual(){
+  const la = parseFloat(document.getElementById('inputLat').value);
+  const lo = parseFloat(document.getElementById('inputLon').value);
+  if(!isNaN(la) && !isNaN(lo)){ S.lat = la; S.lon = lo; }
+}
+function onTempManual(){
+  const t = parseFloat(document.getElementById('inputTemp').value);
+  if(!isNaN(t)){
+    S.temp = t;
+    setWx('warn', '🌡 Nhiệt độ thủ công: ' + t + '°C');
   }
-  state.lat = la;
-  state.lng = lo;
-  state.tempManual = false;
-  renderEngine();
-  toast('Đã áp dụng tọa độ ' + la.toFixed(4) + ', ' + lo.toFixed(4) + ' — đang lấy nhiệt độ…','ok');
-  fetchWeather(la, lo);
 }
 
-/* ============================================================
-   PERSISTENCE (session + localStorage backup)
-============================================================ */
-function persist(){
-  try {
-    localStorage.setItem(LS_KEY, JSON.stringify({
-      bias: state.bias,
-      adjusts: state.adjusts,
-      logs: state.logs.slice(-500)
-    }));
-  } catch(e){ /* storage đầy hoặc bị chặn — vẫn giữ trong RAM */ }
-}
+// ================================================================
+// FEEDBACK & ADAPTIVE BIAS
+// Mechanism progression (tuần tự theo SAI liên tiếp):
+//   Mech-1 (always): sau 3 SAI liên tiếp → đảo ngược pred.
+//                    Sau mỗi lần đảo ngược: nếu vẫn tiếp tục SAI 3 lần nữa
+//                    lần thứ 2 khi mech-1 đã đảo → nâng lên Mech-2.
+//   Mech-2: điều chỉnh cutoff ±0.5 mỗi SAI; sau 3 SAI liên tiếp → nâng lên Mech-3.
+//   Mech-3: offset điểm ±1 mỗi SAI.
+// ================================================================
+function feedback(correct){
+  if(!S.lockedPred && !S.currentPred){
+    showToast('⚠ Chưa có dự đoán nào để đánh giá!'); return;
+  }
+  const snap = S.lockedPred ? S.lockedPred : { ...S.currentPred };
 
-function restore(){
-  try {
-    const d = JSON.parse(localStorage.getItem(LS_KEY));
-    if (!d) return;
-    if (Array.isArray(d.logs)){
-      state.logs = d.logs;
-      state.logs.forEach(r => { if (r.verdict==='D') state.correct++; else state.wrong++; });
+  // --- Stats ---
+  S.stats.total++;
+  if(correct) S.stats.ok++;
+  else        S.stats.fail++;
+
+  // --- Fill eval in existing log entry, or add new ---
+  let filled = false;
+  for(let i = S.log.length - 1; i >= 0; i--){
+    if(S.log[i].eval === null && S.log[i].md5 === snap.md5){
+      S.log[i].eval = correct; filled = true; break;
     }
-    if (typeof d.bias === 'number'){
-      state.bias = d.bias;
-      state.adjusts = d.adjusts || 0;
-    }
-  } catch(e){}
-}
-
-/* ============================================================
-   INIT
-============================================================ */
-let diceEls = [];
-
-function init(){
-  // Build 16 byte spans
-  const box = $('md5Box');
-  for (let i=0;i<16;i++){
-    const s = document.createElement('span');
-    s.className = 'hb mono' + ((i+1)%4===0 ? ' sep' : '');
-    s.textContent = '00';
-    box.appendChild(s);
-    byteSpans.push(s);
+  }
+  if(!filled){
+    S.log.push({ ...snap, eval: correct });
   }
 
-  // Build pips for 3 dice
-  diceEls = [$('dice1'), $('dice2'), $('dice3')];
-  diceEls.forEach(d => {
-    for (let i=1;i<=7;i++){
-      const p = document.createElement('div');
-      p.className = 'pip p' + i;
-      d.appendChild(p);
-    }
-  });
-
-  restore();
-
-  // Khôi phục nhật ký đã lưu
-  state.logs.forEach(r => appendLogRow(r));
-
-  // Frame đầu tiên
-  if (typeof CryptoJS !== 'undefined'){
-    computeFor(Date.now());
+  // --- Adaptive Bias ---
+  const B = S.bias;
+  if(correct){
+    B.consecutiveFail = 0;
+    showToast('✅ Ghi nhận ĐÚNG — bias không đổi');
   } else {
-    $('cryptoWarn').hidden = false;
-    $('pauseBtn').disabled = $('correctBtn').disabled = $('wrongBtn').disabled = $('analyzeBtn').disabled = true;
-    toast('Không tải được CryptoJS — kiểm tra kết nối mạng','err');
+    B.consecutiveFail++;
+
+    if(B.mechanism === 1){
+      if(B.consecutiveFail >= 3){
+        B.consecutiveFail = 0;
+        B.invert = !B.invert;
+        B.mech1InvertCount++;
+        if(B.mech1InvertCount >= 2){
+          // After 2 full invert cycles (2×3 SAI) → escalate
+          B.mechanism = 2;
+          B.mech1InvertCount = 0;
+          showToast('⚙ Kích hoạt Cơ chế 2: dịch ngưỡng phân loại');
+        } else {
+          showToast('⚙ Cơ chế 1: Đảo ngược dự đoán (' + (B.invert?'ĐANG ĐẢO':'Bình thường') + ')');
+        }
+      } else {
+        showToast('❌ SAI ' + B.consecutiveFail + '/3 (Cơ chế 1)');
+      }
+    }
+    else if(B.mechanism === 2){
+      if(snap.pred === 'XOÀI'){
+        B.cutoff = Math.max(6.5, +(B.cutoff - 0.5).toFixed(1));
+      } else {
+        B.cutoff = Math.min(14.5, +(B.cutoff + 0.5).toFixed(1));
+      }
+      if(B.consecutiveFail >= 3){
+        B.mechanism = 3;
+        B.consecutiveFail = 0;
+        showToast('⚙ Kích hoạt Cơ chế 3: offset tổng điểm');
+      } else {
+        showToast('⚙ Cơ chế 2: cut-off → ' + B.cutoff);
+      }
+    }
+    else if(B.mechanism === 3){
+      if(snap.pred === 'XOÀI'){
+        B.offset = Math.max(-4, B.offset - 1);
+      } else {
+        B.offset = Math.min(4, B.offset + 1);
+      }
+      showToast('⚙ Cơ chế 3: offset → ' + (B.offset>=0?'+':'') + B.offset);
+    }
   }
-  renderEngine();
-  renderPredict();
+
+  renderBias();
+  renderLog();
   renderStats();
-  updateStatus();
+  save();
 
-  // Live loop
-  requestAnimationFrame(tick);
+  document.getElementById('feedbackHint').textContent =
+    `Phản hồi #${S.stats.total}: ${correct?'✅ ĐÚNG':'❌ SAI'} · Accuracy tích lũy: ${Math.round(S.stats.ok/S.stats.total*100)}%`;
+}
 
-  // Clock
-  $('clock').textContent = nowTime();
-  setInterval(() => { $('clock').textContent = nowTime(); }, 1000);
+// ================================================================
+// RESET BIAS
+// ================================================================
+function resetBias(){
+  S.bias = { consecutiveFail:0, mechanism:1, invert:false,
+             cutoff:10.5, offset:0, mech1InvertCount:0 };
+  renderBias();
+  save();
+  showToast('🔄 Đã reset Adaptive Bias về mặc định');
+}
 
-  // Auto định vị + thời tiết
-  locateUser();
+// ================================================================
+// CSV EXPORT
+// ================================================================
+function exportCSV(){
+  if(!S.log.length){ showToast('⚠ Chưa có dữ liệu!'); return; }
+  const hdr = ['#','Thời gian','Nhiệt độ(°C)','Vĩ độ','Kinh độ',
+                'MD5 full','Xúc xắc','Tổng thô','Dự đoán','Tin cậy(%)','Đánh giá'];
+  const rows = S.log.map((e,i) => [
+    i+1, e.time, parseFloat(e.temp).toFixed(1),
+    e.lat !== null ? e.lat : 'N/A',
+    e.lon !== null ? e.lon : 'N/A',
+    e.md5, `${e.d1}-${e.d2}-${e.d3}`,
+    e.raw, e.pred, e.conf,
+    e.eval === null ? 'Chưa đánh giá' : e.eval ? 'Đúng' : 'Sai'
+  ].join(','));
 
-  // Events
-  $('pauseBtn').addEventListener('click', () => {
-    if (state.mode==='manual') return;
-    state.running = !state.running;
-    updateStatus();
-    toast(state.running ? 'Đã TIẾP TỤC dòng Seed động' : 'Đã TẠM DỪNG — giá trị hiện tại được giữ nguyên', state.running ? 'ok' : 'warn');
-  });
-  $('correctBtn').addEventListener('click', () => record('D'));
-  $('wrongBtn').addEventListener('click', () => record('S'));
-  $('analyzeBtn').addEventListener('click', analyzeManual);
-  $('backLiveBtn').addEventListener('click', backToLive);
-  $('manualInput').addEventListener('keydown', e => { if (e.key==='Enter') analyzeManual(); });
-  $('csvBtn').addEventListener('click', exportCSV);
-  $('locateBtn').addEventListener('click', locateUser);
-  $('applyCoordBtn').addEventListener('click', applyManualCoords);
-  $('coordInput').addEventListener('keydown', e => { if (e.key==='Enter') applyManualCoords(); });
-  $('tempInput').addEventListener('change', e => {
-    const v = parseFloat(e.target.value);
-    if (isNaN(v)) return;
-    state.temp = Math.max(-60, Math.min(60, v));
-    state.tempManual = true;
-    state.weatherSource = 'Thủ công';
-    state.weatherUpdatedAt = nowTime();
-    renderEngine();
-    renderStats();
-    toast('Nhiệt độ thủ công: ' + state.temp.toFixed(1) + '°C','ok');
+  const csv  = '\uFEFF' + [hdr.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'xucxac_' + fmtFilename() + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('📥 Đã tải CSV — ' + S.log.length + ' dòng');
+}
+
+// ================================================================
+// SECTION TOGGLE  (FIX #2: use id lookup not DOM traversal)
+// ================================================================
+function toggleSection(bodyId, headId){
+  const body = document.getElementById(bodyId);
+  const head = document.getElementById(headId);
+  const open = body.classList.toggle('open');
+  head.classList.toggle('open', open);
+}
+
+// Auto-open on desktop
+if(window.innerWidth >= 640){
+  ['bodyWeather','bodyBias','bodyManual'].forEach(id=>{
+    const b = document.getElementById(id);
+    const h = document.getElementById(id.replace('body','head'));
+    if(b && h){ b.classList.add('open'); h.classList.add('open'); }
   });
 }
 
-document.addEventListener('DOMContentLoaded', init);
+// ================================================================
+// TOAST
+// ================================================================
+let toastTmr = null;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTmr);
+  toastTmr = setTimeout(()=>t.classList.remove('show'), 2400);
+}
+
+// ================================================================
+// UTILS
+// ================================================================
+function pad(n)  { return String(n).padStart(2,'0'); }
+function padMs(n){ return String(n).padStart(3,'0'); }
+function fmtTime(d){ return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds()); }
+function fmtFilename(){
+  const d=new Date();
+  return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
+}
+
+// ================================================================
+// INIT
+// ================================================================
+load();
+renderStats();
+renderBias();
+renderLog();
+renderLockedPred();
+fetchLocation();
 </script>
 </body>
 </html>
