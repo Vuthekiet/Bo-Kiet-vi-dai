@@ -1,188 +1,1167 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mega Poop 3D - Bo Kiet Vi Dai</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { overflow: hidden; background-color: #050505; font-family: sans-serif; }
-        #webcam { display: none; }
-        #loading {
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            color: #d2b48c; font-size: 18px; letter-spacing: 2px;
-            pointer-events: none; z-index: 10; font-weight: bold;
-            transition: opacity 0.5s;
-        }
-    </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEED DICE LAB — Phân Tích & Dự Đoán Xúc Xắc 3D (XOÀI / TÁO)</title>
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+<style>
+  :root{
+    --bg:#060a09;
+    --panel:rgba(255,255,255,.035);
+    --panel2:rgba(255,255,255,.06);
+    --line:rgba(255,255,255,.09);
+    --line2:rgba(255,255,255,.18);
+    --text:#e8f0ec;
+    --muted:#8ba39a;
+    --faint:#5c7269;
+    --mango:#fbbf24;  --mango-dim:rgba(251,191,36,.13);
+    --apple:#fb7185;  --apple-dim:rgba(251,113,133,.13);
+    --live:#34d399;   --live-dim:rgba(52,211,153,.13);
+    --accent:#2dd4bf; --accent-dim:rgba(45,212,191,.12);
+    --violet:#a78bfa;
+    --radius:18px;
+  }
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  body::before{
+    content:'';position:fixed;inset:0;z-index:-2;pointer-events:none;
+    background:
+      radial-gradient(640px 420px at 10% -6%, rgba(45,212,191,.10), transparent 60%),
+      radial-gradient(720px 520px at 96% 8%,  rgba(251,113,133,.08), transparent 60%),
+      radial-gradient(840px 620px at 50% 112%, rgba(251,191,36,.07), transparent 60%);
+  }
+  body::after{
+    content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.55;
+    background-image:
+      linear-gradient(rgba(255,255,255,.028) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(255,255,255,.028) 1px,transparent 1px);
+    background-size:44px 44px;
+    -webkit-mask-image:radial-gradient(ellipse at center, black 25%, transparent 78%);
+            mask-image:radial-gradient(ellipse at center, black 25%, transparent 78%);
+  }
+  .mono{font-family:ui-monospace,'Cascadia Code','JetBrains Mono',Menlo,Consolas,monospace}
+  .dim{color:var(--muted)}
+  .c-mango{color:var(--mango)} .c-apple{color:var(--apple)}
+  .c-live{color:var(--live)} .c-accent{color:var(--accent)}
+
+  /* ---------- Layout ---------- */
+  .app-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}
+  .col-engine{grid-column:span 12}
+  .col-predict{grid-column:span 12}
+  .col-stats{grid-column:span 12}
+  .col-log{grid-column:span 12}
+  @media(min-width:768px){
+    .col-engine{grid-column:span 5}
+    .col-predict{grid-column:span 7}
+    .col-stats{grid-column:span 12}
+  }
+  @media(min-width:1100px){
+    .col-engine{grid-column:span 4}
+    .col-predict{grid-column:span 5}
+    .col-stats{grid-column:span 3}
+  }
+
+  /* ---------- Panels ---------- */
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    backdrop-filter:blur(14px);
+    -webkit-backdrop-filter:blur(14px);
+    position:relative;
+    box-shadow:0 18px 48px rgba(0,0,0,.35);
+  }
+  .panel-h{
+    display:flex;align-items:center;gap:10px;
+    padding:14px 18px;border-bottom:1px solid var(--line);
+  }
+  .panel-h h2{font-size:12px;font-weight:800;letter-spacing:.14em;margin:0}
+  .panel-ico{color:var(--accent);display:inline-flex;flex-shrink:0}
+  .kicker{font-size:10.5px;font-weight:700;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;display:flex;align-items:center;gap:6px}
+  .big-num{font-size:22px;font-weight:700}
+  .unit{font-size:13px;color:var(--muted);margin-left:3px}
+
+  /* ---------- Badges / chips ---------- */
+  .badge{
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:10.5px;font-weight:700;letter-spacing:.08em;
+    padding:4px 10px;border-radius:999px;
+    border:1px solid var(--line2);color:var(--muted);
+    white-space:nowrap;
+  }
+  .badge.b-live{color:var(--live);border-color:rgba(52,211,153,.4);background:var(--live-dim)}
+  .badge.b-tay{color:var(--violet);border-color:rgba(167,139,250,.4);background:rgba(167,139,250,.12)}
+  .badge.b-mango{color:var(--mango);border-color:rgba(251,191,36,.45);background:var(--mango-dim)}
+  .badge.b-apple{color:var(--apple);border-color:rgba(251,113,133,.45);background:var(--apple-dim)}
+  .chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;padding:3px 9px;border-radius:8px;letter-spacing:.05em}
+  .chip.d{color:var(--live);background:var(--live-dim);border:1px solid rgba(52,211,153,.35)}
+  .chip.s{color:var(--apple);background:var(--apple-dim);border:1px solid rgba(251,113,133,.35)}
+
+  .dot{width:8px;height:8px;border-radius:99px;display:inline-block;flex-shrink:0}
+  .dot.live{background:var(--live);box-shadow:0 0 10px var(--live);animation:pulse 1.2s ease-in-out infinite}
+  .dot.amber{background:#fbbf24;box-shadow:0 0 10px rgba(251,191,36,.8)}
+  .dot.violet{background:var(--violet);box-shadow:0 0 10px rgba(167,139,250,.8)}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.75)}}
+
+  /* ---------- Buttons / inputs ---------- */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    font-weight:700;font-size:12.5px;letter-spacing:.05em;
+    border-radius:12px;padding:10px 14px;
+    border:1px solid var(--line2);color:var(--text);
+    background:var(--panel2);cursor:pointer;
+    transition:all .18s ease;user-select:none;white-space:nowrap;
+  }
+  .btn:hover{background:rgba(255,255,255,.1);transform:translateY(-1px)}
+  .btn:active{transform:translateY(0) scale(.97)}
+  .btn:disabled{opacity:.42;cursor:not-allowed;transform:none}
+  .btn-ok{border-color:rgba(52,211,153,.45);background:var(--live-dim);color:#6ee7b7}
+  .btn-ok:hover{background:rgba(52,211,153,.24)}
+  .btn-bad{border-color:rgba(251,113,133,.45);background:var(--apple-dim);color:#fda4af}
+  .btn-bad:hover{background:rgba(251,113,133,.24)}
+  .btn-warn{border-color:rgba(251,191,36,.45);background:var(--mango-dim);color:#fcd34d}
+  .btn-warn:hover{background:rgba(251,191,36,.24)}
+  .btn-ghost{background:transparent}
+  .input{
+    background:rgba(0,0,0,.38);border:1px solid var(--line2);
+    border-radius:10px;padding:9px 12px;color:var(--text);
+    font-size:13px;outline:none;transition:border-color .15s,box-shadow .15s;
+    min-width:0;width:100%;
+  }
+  .input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(45,212,191,.16)}
+  .input::placeholder{color:var(--faint)}
+  .shake{animation:shake .4s}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+
+  /* ---------- Engine panel ---------- */
+  .ts-val{font-size:26px;font-weight:700;letter-spacing:.02em;color:var(--accent);text-shadow:0 0 18px rgba(45,212,191,.35)}
+  .seed-preview{
+    margin-top:6px;padding:10px 12px;border-radius:10px;
+    background:rgba(0,0,0,.35);border:1px solid var(--line);
+    font-size:11.5px;line-height:1.6;color:var(--muted);
+    word-break:break-all;
+  }
+  .io-block{padding-top:12px;border-top:1px dashed var(--line)}
+  .eng-note{font-size:11.5px;line-height:1.6}
+
+  /* ---------- Hash display ---------- */
+  .hash-box{
+    margin-top:6px;padding:14px 16px;border-radius:12px;
+    background:rgba(0,0,0,.42);border:1px solid var(--line);
+    font-size:clamp(14px,1.55vw,19px);letter-spacing:.05em;line-height:1.85;
+    word-break:break-all;
+  }
+  .hb{color:var(--faint);transition:color .15s,text-shadow .15s;margin-right:4px}
+  .hb.sep{margin-right:12px}
+  .hb.used{color:#5eead4;text-shadow:0 0 12px rgba(94,234,212,.5)}
+  .caret{display:inline-block;width:9px;height:1.05em;background:var(--accent);vertical-align:-0.15em;margin-left:4px;border-radius:2px;animation:blink 1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+  .used-legend{font-size:11px;color:var(--muted);margin-top:8px}
+
+  /* ---------- Dice ---------- */
+  .dice-wrap{display:flex;gap:20px;justify-content:center;padding:8px 0 4px;perspective:600px}
+  .dice{
+    width:76px;height:76px;border-radius:18px;position:relative;flex-shrink:0;
+    background:linear-gradient(155deg,#1c2220,#0f1413);
+    border:1px solid var(--line2);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 12px 28px rgba(0,0,0,.5);
+    transition:border-color .3s;
+  }
+  .dice-wrap[data-side="XOÀI"] .dice{border-color:rgba(251,191,36,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 12px 28px rgba(0,0,0,.5),0 0 26px rgba(251,191,36,.16)}
+  .dice-wrap[data-side="TÁO"] .dice{border-color:rgba(251,113,133,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 12px 28px rgba(0,0,0,.5),0 0 26px rgba(251,113,133,.16)}
+  .pip{position:absolute;width:15%;height:15%;border-radius:9999px;background:#fff;opacity:0;box-shadow:0 0 9px rgba(255,255,255,.55);transition:opacity .07s}
+  .pip.on{opacity:1}
+  .p1{left:16%;top:16%}.p2{left:69%;top:16%}.p3{left:16%;top:69%}
+  .p4{left:69%;top:69%}.p5{left:42.5%;top:42.5%}.p6{left:16%;top:42.5%}.p7{left:69%;top:42.5%}
+  .dice.rolling{animation:roll .3s linear infinite}
+  @keyframes roll{
+    0%{transform:translateY(0) rotate(0deg)}
+    25%{transform:translateY(-4px) rotate(-2.5deg)}
+    50%{transform:translateY(1px) rotate(0deg)}
+    75%{transform:translateY(3px) rotate(2.5deg)}
+    100%{transform:translateY(0) rotate(0deg)}
+  }
+  @media(max-width:560px){.dice{width:60px;height:60px;border-radius:14px}}
+
+  /* ---------- Result ---------- */
+  .result-row{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .sum-val{font-size:46px;font-weight:900;line-height:1;letter-spacing:-.02em}
+  .side-badge{display:inline-block;font-size:26px;font-weight:900;letter-spacing:.14em;padding:10px 24px;border-radius:14px;border:1px solid;transition:all .25s}
+  .side-XOÀI{color:var(--mango);background:var(--mango-dim);border-color:rgba(251,191,36,.5);text-shadow:0 0 22px rgba(251,191,36,.55);box-shadow:0 0 34px rgba(251,191,36,.14),inset 0 0 22px rgba(251,191,36,.07)}
+  .side-TÁO{color:var(--apple);background:var(--apple-dim);border-color:rgba(251,113,133,.5);text-shadow:0 0 22px rgba(251,113,133,.55);box-shadow:0 0 34px rgba(251,113,133,.14),inset 0 0 22px rgba(251,113,133,.07)}
+
+  .conf-track{height:10px;border-radius:999px;background:rgba(0,0,0,.45);border:1px solid var(--line);overflow:hidden}
+  .conf-fill{height:100%;border-radius:999px;width:50%;transition:width .2s ease,background .3s ease}
+  .spec-wrap{margin-top:14px}
+  .spec-track{position:relative;height:14px;border-radius:999px;border:1px solid var(--line);overflow:hidden;background:linear-gradient(90deg,rgba(251,191,36,.28),rgba(251,113,133,.28))}
+  .spec-marker{
+    position:absolute;top:-3px;width:4px;height:20px;border-radius:3px;
+    background:#fff;box-shadow:0 0 12px rgba(255,255,255,.8);
+    transition:left .2s ease;transform:translateX(-2px);
+  }
+  .spec-labels{display:flex;justify-content:space-between;margin-top:7px;font-size:10.5px;font-weight:700;letter-spacing:.08em}
+  .ctrl-row{display:flex;gap:10px;flex-wrap:wrap}
+  .hint{font-size:11.5px;color:var(--muted);line-height:1.6}
+  .manual-block{padding-top:14px;border-top:1px dashed var(--line)}
+  .crypto-warn{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:12px;color:#fca5a5;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.35)}
+
+  /* ---------- Stats ---------- */
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stat-card{
+    padding:13px 14px;border-radius:14px;
+    background:rgba(0,0,0,.28);border:1px solid var(--line);
+  }
+  .stat-num{font-size:26px;font-weight:800;line-height:1.2;margin-top:4px}
+  .acc-track{height:8px;border-radius:99px;background:rgba(0,0,0,.45);border:1px solid var(--line);overflow:hidden;margin-top:9px}
+  .acc-fill{height:100%;border-radius:99px;width:0;background:linear-gradient(90deg,rgba(52,211,153,.4),var(--live));transition:width .35s ease}
+
+  /* ---------- Log table ---------- */
+  .log-scroll{max-height:460px;overflow:auto;border-radius:0 0 var(--radius) var(--radius)}
+  .log-table{width:100%;border-collapse:collapse;font-size:12px}
+  .log-table th{
+    position:sticky;top:0;background:#0b1110;z-index:2;
+    text-align:left;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted);padding:11px 13px;border-bottom:1px solid var(--line2);white-space:nowrap;
+  }
+  .log-table td{padding:10px 13px;border-bottom:1px solid rgba(255,255,255,.05);vertical-align:middle;white-space:nowrap}
+  .log-table tbody tr{animation:rowIn .35s ease both}
+  @keyframes rowIn{from{opacity:0;transform:translateY(-7px)}to{opacity:1;transform:none}}
+  .log-table tbody tr:hover{background:rgba(255,255,255,.035)}
+  .md5-cell{color:var(--muted);font-size:11px;letter-spacing:.04em}
+  .empty-cell{text-align:center!important;padding:42px 20px!important;color:var(--faint)!important;font-size:13px;line-height:1.7;white-space:normal!important}
+
+  /* ---------- Toast ---------- */
+  #toasts{position:fixed;right:18px;bottom:18px;z-index:60;display:flex;flex-direction:column;gap:10px;max-width:min(360px,calc(100vw - 36px))}
+  .toast{
+    display:flex;align-items:flex-start;gap:10px;
+    background:#101816;border:1px solid var(--line2);border-left:3px solid var(--accent);
+    border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.5;
+    box-shadow:0 14px 36px rgba(0,0,0,.55);
+    animation:toastIn .32s cubic-bezier(.2,.9,.3,1.15) both;
+  }
+  .toast.ok{border-left-color:var(--live)}
+  .toast.warn{border-left-color:#fbbf24}
+  .toast.err{border-left-color:#f87171}
+  .toast.out{animation:toastOut .3s ease both}
+  @keyframes toastIn{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
+  @keyframes toastOut{to{opacity:0;transform:translateX(28px)}}
+
+  /* ---------- Scrollbar ---------- */
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.13);border-radius:99px;border:2px solid var(--bg)}
+  ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.22)}
+</style>
 </head>
 <body>
 
-    <div id="loading">ĐANG HIỂN THỊ BÃI CỨT EMOJI...</div>
-    <video id="webcam" playsinline></video>
+<!-- ===================== HEADER ===================== -->
+<header class="sticky top-0 z-40 border-b border-white/10" style="background:rgba(6,10,9,.78);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)">
+  <div class="max-w-[1400px] mx-auto px-4 py-3 flex items-center gap-3 flex-wrap">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#5eead4" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+      <rect x="3" y="3" width="18" height="18" rx="4"/>
+      <circle cx="8.5" cy="8.5" r="1.5" fill="#5eead4" stroke="none"/>
+      <circle cx="15.5" cy="8.5" r="1.5" fill="#5eead4" stroke="none"/>
+      <circle cx="12" cy="12" r="1.5" fill="#5eead4" stroke="none"/>
+      <circle cx="8.5" cy="15.5" r="1.5" fill="#5eead4" stroke="none"/>
+      <circle cx="15.5" cy="15.5" r="1.5" fill="#5eead4" stroke="none"/>
+    </svg>
+    <div>
+      <h1 style="font-size:16px;font-weight:900;letter-spacing:.14em;line-height:1.1">SEED DICE LAB</h1>
+      <p class="dim" style="font-size:11px;letter-spacing:.04em">Phân tích &amp; dự đoán xúc xắc 3D — MD5 Seed Engine · XOÀI (3–10) / TÁO (11–18)</p>
+    </div>
+    <div class="ml-auto flex items-center gap-3 flex-wrap">
+      <span id="clock" class="mono dim" style="font-size:13px;letter-spacing:.06em">--:--:--</span>
+      <span class="badge" style="padding:6px 13px;font-size:11px">
+        <span id="statusDot" class="dot live"></span>
+        <span id="statusPill">LIVE</span>
+      </span>
+    </div>
+  </div>
+</header>
 
-    <script>
-        // 1. SCENE SETUP
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.z = 35;
+<!-- ===================== MAIN ===================== -->
+<main class="max-w-[1400px] mx-auto px-4 py-5 flex flex-col gap-4">
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        document.body.appendChild(renderer.domElement);
+  <div class="app-grid">
 
-        // 2. TẠO TẤM BẢNG VẼ BÃI CỨT EMOJI (CANVAS)
-        const canvas = document.createElement('canvas');
-        canvas.width = 512;
-        canvas.height = 512;
-        const ctx = canvas.getContext('2d');
+    <!-- ========== SEED ENGINE ========== -->
+    <section class="panel col-engine">
+      <div class="panel-h">
+        <span class="panel-ico">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+        </span>
+        <h2>BỘ TẠO HẠT GIỐNG (SEED)</h2>
+      </div>
+      <div class="p-4 flex flex-col gap-4">
+        <div class="flex justify-between items-start gap-3 flex-wrap">
+          <div>
+            <div class="kicker">TIMESTAMP (ms)</div>
+            <div id="tsVal" class="mono ts-val">0</div>
+          </div>
+          <div class="text-right">
+            <div class="kicker">NHIỆT ĐỘ</div>
+            <div><span id="tempVal" class="mono big-num">30.0</span><span class="unit">°C</span></div>
+            <span id="tempBadge" class="badge mt-1">Mặc định</span>
+          </div>
+        </div>
 
-        function drawPoopWithUserImage(userImg = null) {
-            ctx.clearRect(0, 0, 512, 512);
+        <div class="flex justify-between items-start gap-3 flex-wrap">
+          <div>
+            <div class="kicker">TỌA ĐỘ (Lat, Lng)</div>
+            <div id="coordVal" class="mono" style="font-size:15px;font-weight:700;margin-top:4px">Đang định vị…</div>
+          </div>
+          <div class="text-right">
+            <div class="kicker">WEIGHT BIAS</div>
+            <div id="biasVal" class="mono big-num" style="color:var(--violet);text-shadow:0 0 16px rgba(167,139,250,.4)">0</div>
+            <div class="dim" style="font-size:11px">Ngưỡng: <span id="thrVal" class="mono">10.5</span> · XOÀI ≤ ngưỡng &lt; TÁO</div>
+          </div>
+        </div>
 
-            // --- VẼ THÂN BÃI CỨT (MÀU NÂU NỎN NÀ 3 TẦNG) ---
-            ctx.fillStyle = '#8B4513';
-            ctx.strokeStyle = '#5C2E0B';
-            ctx.lineWidth = 10;
+        <div>
+          <div class="kicker">CẤU TRÚC SEED ĐANG BĂM MD5</div>
+          <div id="seedPreview" class="seed-preview mono">…</div>
+        </div>
 
-            // Tầng đáy
-            ctx.beginPath();
-            ctx.ellipse(256, 400, 180, 70, 0, 0, Math.PI * 2);
-            ctx.fill(); ctx.stroke();
+        <div class="io-block">
+          <div class="kicker mb-2">ĐIỀU CHỈNH THỦ CÔNG (2 Ô NHẬP)</div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <input id="tempInput" class="input flex-1" type="number" step="0.1" placeholder="Nhiệt độ (°C)">
+              <button id="locateBtn" class="btn" title="Xin quyền vị trí & lấy nhiệt độ thực tế">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                LẤY VỊ TRÍ
+              </button>
+            </div>
+            <div class="flex gap-2">
+              <input id="coordInput" class="input mono flex-1" placeholder="Tọa độ: 10.7769, 106.7009">
+              <button id="applyCoordBtn" class="btn">ÁP DỤNG</button>
+            </div>
+          </div>
+        </div>
 
-            // Tầng giữa
-            ctx.beginPath();
-            ctx.ellipse(256, 300, 140, 60, 0, 0, Math.PI * 2);
-            ctx.fill(); ctx.stroke();
+        <p class="eng-note dim">
+          Seed = <b>Timestamp(ms)</b> + <b>Nhiệt độ(°C)</b> + <b>Tọa độ(Lat,Lng)</b> + Bias.
+          Mỗi xúc xắc trích từ 1 byte MD5 qua <b>rejection sampling mod 6</b> — loại bỏ hoàn toàn lệch tỷ lệ.
+          Bias học từ phản hồi SAI chỉ dịch chuyển ngưỡng phân loại, không can thiệp tính công bằng của xúc xắc.
+        </p>
+      </div>
+    </section>
 
-            // Tầng trên
-            ctx.beginPath();
-            ctx.ellipse(256, 210, 90, 45, 0, 0, Math.PI * 2);
-            ctx.fill(); ctx.stroke();
+    <!-- ========== PREDICTION ========== -->
+    <section class="panel col-predict">
+      <div class="panel-h">
+        <span class="panel-ico">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
+        </span>
+        <h2>KẾT QUẢ DỰ ĐOÁN</h2>
+        <span id="modeBadge" class="badge b-live ml-auto">LIVE</span>
+      </div>
+      <div class="p-5 flex flex-col gap-5">
 
-            // Chóp nhọn xoắn
-            ctx.beginPath();
-            ctx.moveTo(210, 180);
-            ctx.quadraticCurveTo(256, 100, 290, 80);
-            ctx.quadraticCurveTo(270, 130, 280, 170);
-            ctx.fill(); ctx.stroke();
+        <div>
+          <div class="kicker">MD5(SEED) — CẬP NHẬT THEO MILIGIÂY</div>
+          <div class="hash-box mono"><span id="md5Box"></span><span class="caret"></span></div>
+          <div class="used-legend">Byte MD5 dùng cho 3 xúc xắc: <b id="usedLegend" class="mono c-accent">—</b> <span class="dim">· chữ sáng = đã qua rejection sampling (b &lt; 252)</span></div>
+        </div>
 
-            // --- VẼ MẮT EMOJI CƯỜI ---
-            // Mắt trái
-            ctx.fillStyle = '#FFFFFF';
-            ctx.beginPath(); ctx.arc(200, 280, 35, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-            ctx.fillStyle = '#000000';
-            ctx.beginPath(); ctx.arc(200, 280, 18, 0, Math.PI * 2); ctx.fill();
+        <div class="dice-wrap" id="diceWrap" data-side="XOÀI">
+          <div class="dice rolling" id="dice1"></div>
+          <div class="dice rolling" id="dice2"></div>
+          <div class="dice rolling" id="dice3"></div>
+        </div>
 
-            // Mắt phải
-            ctx.fillStyle = '#FFFFFF';
-            ctx.beginPath(); ctx.arc(312, 280, 35, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-            ctx.fillStyle = '#000000';
-            ctx.beginPath(); ctx.arc(312, 280, 18, 0, Math.PI * 2); ctx.fill();
+        <div class="result-row">
+          <div>
+            <div class="kicker">TỔNG 3 XÚC XẮC</div>
+            <div id="sumVal" class="sum-val">3</div>
+          </div>
+          <div class="text-right">
+            <div class="kicker">CỬA DỰ ĐOÁN</div>
+            <span id="sideBadge" class="side-badge side-XOÀI" style="margin-top:4px">XOÀI</span>
+          </div>
+        </div>
 
-            // Miệng cười
-            ctx.fillStyle = '#FFFFFF';
-            ctx.beginPath();
-            ctx.arc(256, 330, 50, 0, Math.PI, false);
-            ctx.closePath();
-            ctx.fill(); ctx.stroke();
+        <div>
+          <div class="flex justify-between items-center mb-1.5">
+            <span class="dim" style="font-size:11.5px;font-weight:700;letter-spacing:.08em">ĐỘ TIN CẬY (CONFIDENCE)</span>
+            <span id="confPct" class="mono c-accent" style="font-size:13px;font-weight:700">50.0%</span>
+          </div>
+          <div class="conf-track"><div id="confFill" class="conf-fill"></div></div>
+          <div class="spec-wrap">
+            <div class="spec-track"><div id="specMarker" class="spec-marker" style="left:0%"></div></div>
+            <div class="spec-labels">
+              <span class="c-mango">3 · XOÀI</span>
+              <span id="specMid" class="mono dim">10.5</span>
+              <span class="c-apple">18 · TÁO</span>
+            </div>
+          </div>
+        </div>
 
-            // --- NẾU LOAD ĐƯỢC ẢNH CỦA BẠN: ĐẮP ẢNH VÀO TÂM BÃI CỨT ---
-            if (userImg) {
-                ctx.save();
-                ctx.beginPath();
-                ctx.arc(256, 210, 40, 0, Math.PI * 2); // Khung tròn trên tầng trên
-                ctx.closePath();
-                ctx.clip();
-                ctx.drawImage(userImg, 216, 170, 80, 80);
-                ctx.restore();
-                ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 6;
-                ctx.beginPath(); ctx.arc(256, 210, 40, 0, Math.PI * 2); ctx.stroke();
-            }
+        <div class="ctrl-row">
+          <button id="pauseBtn" class="btn btn-warn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="8" y1="5" x2="8" y2="19"/><line x1="16" y1="5" x2="16" y2="19"/></svg>
+            <span id="pauseLabel">TẠM DỪNG</span>
+          </button>
+          <button id="correctBtn" class="btn btn-ok">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 9 17 20 6"/></svg>
+            ĐÚNG — KHỚP
+          </button>
+          <button id="wrongBtn" class="btn btn-bad">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+            SAI — LỆCH
+          </button>
+        </div>
+        <p class="hint">Đánh giá <b>ĐÚNG / SAI</b> để chốt lượt test vào nhật ký. Phản hồi <b>SAI</b> sẽ tự động điều chỉnh Weight Bias nhằm tăng độ chính xác lượt sau.</p>
+
+        <div class="manual-block">
+          <div class="kicker mb-2">MD5 THỦ CÔNG — ƯU TIÊN PHÂN TÍCH CHUỖI NHẬP NGOÀI</div>
+          <div class="flex gap-2 flex-wrap">
+            <input id="manualInput" class="input mono flex-1" placeholder="Dán 32 ký tự MD5 hex (0-9, a-f)…" maxlength="32" autocomplete="off" spellcheck="false">
+            <button id="analyzeBtn" class="btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+              PHÂN TÍCH
+            </button>
+            <button id="backLiveBtn" class="btn btn-ghost" style="display:none">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+              VỀ SEED ĐỘNG
+            </button>
+          </div>
+          <div id="cryptoWarn" class="crypto-warn" hidden>
+            Không tải được thư viện CryptoJS từ CDN — vui lòng kiểm tra kết nối mạng và tải lại trang.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== STATS ========== -->
+    <section class="panel col-stats">
+      <div class="panel-h">
+        <span class="panel-ico">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
+        </span>
+        <h2>THỐNG KÊ TÍCH LŨY</h2>
+      </div>
+      <div class="p-4 flex flex-col gap-3">
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="kicker">TỔNG LƯỢT</div>
+            <div id="stTotal" class="stat-num mono">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="kicker c-live">ĐÚNG</div>
+            <div id="stCorrect" class="stat-num mono c-live">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="kicker c-apple">SAI</div>
+            <div id="stWrong" class="stat-num mono c-apple">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="kicker">ĐỘ CHÍNH XÁC</div>
+            <div id="stAcc" class="stat-num mono c-accent">0.0%</div>
+            <div class="acc-track"><div id="accBar" class="acc-fill"></div></div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="kicker mb-1.5">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+            THỜI TIẾT &amp; VỊ TRÍ
+          </div>
+          <div class="flex justify-between items-end gap-2 flex-wrap">
+            <span id="wTemp" class="mono big-num">30.0°C</span>
+            <span id="wSource" class="badge">Mặc định</span>
+          </div>
+          <div class="dim mt-1.5" style="font-size:11px;line-height:1.7">
+            Tọa độ: <span id="wCoords" class="mono">N/A</span><br>
+            Cập nhật lúc: <span id="wUpdated" class="mono">—</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="kicker mb-1.5">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            ADAPTIVE BIAS (TỰ HỌC)
+          </div>
+          <div class="flex justify-between items-end gap-2 flex-wrap">
+            <span id="biasNow" class="mono big-num" style="color:var(--violet)">0</span>
+            <span class="dim" style="font-size:11px">Số lần điều chỉnh: <b id="biasAdj" class="mono" style="color:var(--violet)">0</b></span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ========== LOG ========== -->
+  <section class="panel col-log">
+    <div class="panel-h">
+      <span class="panel-ico">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 9 8 9"/><path d="M12 7v5l3 2"/></svg>
+      </span>
+      <h2>NHẬT KÝ TEST — LƯU TRỮ KHÔNG GIỚI HẠN</h2>
+      <span id="logCount" class="badge b-live">0</span>
+      <button id="csvBtn" class="btn btn-ghost ml-auto">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="6 11 12 17 18 11"/><line x1="4" y1="21" x2="20" y2="21"/></svg>
+        TẢI LỊCH SỬ (CSV)
+      </button>
+    </div>
+    <div class="log-scroll">
+      <table class="log-table">
+        <thead>
+          <tr>
+            <th>#</th><th>Thời gian</th><th>Nguồn</th><th>Nhiệt độ / Tọa độ</th>
+            <th>MD5 Hash</th><th>Xúc xắc</th><th>Σ</th><th>Dự đoán</th>
+            <th>Tin cậy</th><th>Đ/S</th><th>Bias</th>
+          </tr>
+        </thead>
+        <tbody id="logBody">
+          <tr id="logEmpty">
+            <td colspan="11" class="empty-cell">
+              Chưa có lượt test nào — nhấn <b>ĐÚNG</b> hoặc <b>SAI</b> để bắt đầu ghi nhận.<br>
+              Toàn bộ dữ liệu thử nghiệm được giữ nguyên vẹn (không có chức năng xóa) và có thể xuất CSV bất kỳ lúc nào.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<footer class="max-w-[1400px] mx-auto px-4 pb-8 pt-2">
+  <p class="dim text-center" style="font-size:11px;line-height:1.8;letter-spacing:.03em">
+    SEED DICE LAB v1.0 — Seed động: Timestamp(ms) + Nhiệt độ Open-Meteo (không cần API Key) + Tọa độ người dùng · Băm MD5 (CryptoJS) · Xúc xắc công bằng bằng rejection sampling mod 6 · Adaptive Bias tự điều chỉnh ngưỡng phân loại.<br>
+    Công cụ mô phỏng &amp; nghiên cứu dữ liệu — kết quả mang tính ngẫu nhiên, không dùng để cá cược.
+  </p>
+</footer>
+
+<div id="toasts"></div>
+
+<script>
+'use strict';
+
+/* ============================================================
+   STATE
+============================================================ */
+const state = {
+  running: true,
+  mode: 'live',               // 'live' | 'manual'
+  ts: 0,
+  temp: 30,
+  lat: null,
+  lng: null,
+  tempManual: false,
+  bias: 0,
+  adjusts: 0,
+  weatherSource: 'Mặc định',
+  weatherUpdatedAt: null,
+  seed: '',
+  md5: '',
+  dice: [1,1,1],
+  usedBytes: [],
+  sum: 3,
+  side: 'XOÀI',
+  conf: 50,
+  manualMd5: null,
+  logs: [],
+  correct: 0,
+  wrong: 0,
+  lastDice: [0,0,0]
+};
+
+const BIAS_MIN = -10, BIAS_MAX = 10, BOUND_MIN = 6, BOUND_MAX = 15;
+const LS_KEY = 'seedDiceLab_v1';
+
+const $ = id => document.getElementById(id);
+
+/* ============================================================
+   UTILITIES
+============================================================ */
+const pad2 = n => String(n).padStart(2,'0');
+function nowTime(){
+  const d = new Date();
+  return pad2(d.getHours())+':'+pad2(d.getMinutes())+':'+pad2(d.getSeconds());
+}
+function fmtBias(b){ return (b>0?'+':'')+b; }
+function accPct(){ return state.logs.length ? (state.correct/state.logs.length*100) : 0; }
+function boundary(){
+  return Math.min(BOUND_MAX, Math.max(BOUND_MIN, 10.5 - state.bias*0.5));
+}
+function md5hex(str){
+  return CryptoJS.MD5(str).toString();
+}
+function toast(msg, type){
+  const wrap = $('toasts');
+  const el = document.createElement('div');
+  el.className = 'toast ' + (type||'');
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(()=>{ el.classList.add('out'); setTimeout(()=>el.remove(), 320); }, 3400);
+}
+
+/* ============================================================
+   CORE: SEED → MD5 → DICE (fair rejection sampling mod 6)
+============================================================ */
+function buildSeed(ts){
+  const c = (state.lat===null || state.lng===null) ? 'N/A' : (state.lat+','+state.lng);
+  return ts + '|' + state.temp + '°C|' + c + '|B' + state.bias;
+}
+
+/* Trích 3 xúc xắc từ các byte hex của MD5.
+   Rejection sampling: chỉ nhận byte < 252 vì 256 % 6 = 4,
+   nhờ đó phân phối 1..6 công bằng tuyệt đối, không lệch tỷ lệ. */
+function hashToDice(hex){
+  const dice = [], used = [];
+  let i = 0;
+  while (dice.length < 3 && i < 16){
+    const b = parseInt(hex.substr(i*2,2), 16);
+    if (b < 252){ dice.push((b % 6) + 1); used.push(i+1); }
+    i++;
+  }
+  while (dice.length < 3){
+    const b = parseInt(hex.substr((i % 16)*2,2), 16);
+    dice.push((b % 6) + 1);
+    used.push((i % 16) + 1);
+    i++;
+  }
+  return { dice, used };
+}
+
+function classify(sum){
+  const b = boundary();
+  const side = sum <= b ? 'XOÀI' : 'TÁO';
+  const acc = state.logs.length ? state.correct/state.logs.length : 0.5;
+  const margin = Math.abs(sum - b);                 // càng xa ngưỡng → càng tự tin
+  let conf = 50 + (margin/8)*42 + (acc - 0.5)*10;   // + độ chính xác lịch sử
+  conf = Math.max(50, Math.min(98, conf));
+  return { side, conf: +conf.toFixed(1) };
+}
+
+function computeFor(ts){
+  state.ts = ts;
+  state.seed = buildSeed(ts);
+  state.md5 = md5hex(state.seed);
+  const r = hashToDice(state.md5);
+  state.dice = r.dice;
+  state.usedBytes = r.used;
+  state.sum = state.dice[0] + state.dice[1] + state.dice[2];
+  const c = classify(state.sum);
+  state.side = c.side;
+  state.conf = c.conf;
+}
+
+/* ============================================================
+   RENDER HELPERS
+============================================================ */
+const PIPS = {
+  1:[5],
+  2:[1,4],
+  3:[1,5,4],
+  4:[1,2,3,4],
+  5:[1,2,5,3,4],
+  6:[1,2,6,3,4,7]
+};
+
+function setDice(el, v){
+  const pips = el.querySelectorAll('.pip');
+  const on = PIPS[v] || [];
+  pips.forEach((p,i)=>p.classList.toggle('on', on.includes(i+1)));
+}
+
+function renderEngine(){
+  $('tsVal').textContent = state.mode==='manual' ? (state.ts + ' (tạm khóa)') : state.ts;
+  $('tempVal').textContent = (+state.temp).toFixed(1);
+  $('tempBadge').textContent = state.weatherSource;
+  $('coordVal').textContent = (state.lat===null||state.lng===null)
+    ? 'N/A — mặc định 30°C'
+    : (+state.lat).toFixed(4) + ', ' + (+state.lng).toFixed(4);
+  $('seedPreview').textContent = state.mode==='manual'
+    ? 'MD5 thủ công — ' + state.manualMd5
+    : state.seed;
+  $('biasVal').textContent = fmtBias(state.bias);
+  $('thrVal').textContent = boundary().toFixed(1);
+  // đồng bộ ô nhập nhiệt độ khi không gõ
+  if (document.activeElement !== $('tempInput')){
+    $('tempInput').value = (+state.temp).toFixed(1);
+  }
+}
+
+let byteSpans = [];
+function renderPredict(){
+  // MD5 bytes
+  for (let i=0;i<16;i++){
+    byteSpans[i].textContent = state.md5.substr(i*2,2);
+    byteSpans[i].classList.toggle('used', state.usedBytes.includes(i+1));
+  }
+  $('usedLegend').textContent = '#' + state.usedBytes.join(', #');
+
+  // Dice
+  for (let i=0;i<3;i++){
+    if (state.lastDice[i] !== state.dice[i]){
+      state.lastDice[i] = state.dice[i];
+      setDice(diceEls[i], state.dice[i]);
+    }
+  }
+  $('diceWrap').dataset.side = state.side;
+
+  // Sum + side
+  $('sumVal').textContent = state.sum;
+  const sb = $('sideBadge');
+  sb.textContent = state.side;
+  sb.className = 'side-badge side-' + state.side;
+
+  // Confidence
+  $('confPct').textContent = state.conf.toFixed(1) + '%';
+  const fill = $('confFill');
+  fill.style.width = state.conf + '%';
+  fill.style.background = state.side==='XOÀI'
+    ? 'linear-gradient(90deg,rgba(251,191,36,.30),var(--mango))'
+    : 'linear-gradient(90deg,rgba(251,113,133,.30),var(--apple))';
+
+  // Spectrum marker 3..18
+  $('specMarker').style.left = ((state.sum - 3)/15*100) + '%';
+  $('specMid').textContent = boundary().toFixed(1);
+}
+
+function renderStats(){
+  const t = state.logs.length;
+  $('stTotal').textContent = t;
+  $('stCorrect').textContent = state.correct;
+  $('stWrong').textContent = state.wrong;
+  const a = accPct();
+  $('stAcc').textContent = a.toFixed(1) + '%';
+  const bar = $('accBar');
+  bar.style.width = a + '%';
+  bar.style.background = a >= 50
+    ? 'linear-gradient(90deg,rgba(52,211,153,.4),var(--live))'
+    : 'linear-gradient(90deg,rgba(251,113,133,.4),var(--apple))';
+
+  $('wTemp').textContent = (+state.temp).toFixed(1) + '°C';
+  const wsrc = $('wSource');
+  wsrc.textContent = state.weatherSource;
+  wsrc.className = 'badge ' + (state.weatherSource==='Open-Meteo' ? 'b-live' : state.weatherSource==='Thủ công' ? 'b-tay' : '');
+  $('wCoords').textContent = (state.lat===null||state.lng===null) ? 'N/A' : (+state.lat).toFixed(4)+', '+(+state.lng).toFixed(4);
+  $('wUpdated').textContent = state.weatherUpdatedAt || '—';
+
+  $('biasNow').textContent = fmtBias(state.bias);
+  $('biasAdj').textContent = state.adjusts;
+  $('logCount').textContent = state.logs.length;
+}
+
+function updateStatus(){
+  const pill = $('statusPill'), dot = $('statusDot'), mb = $('modeBadge');
+  if (state.mode==='manual'){
+    pill.textContent = 'MD5 TAY';
+    dot.className = 'dot violet';
+    mb.textContent = 'MD5 THỦ CÔNG';
+    mb.className = 'badge b-tay ml-auto';
+  } else if (state.running){
+    pill.textContent = 'LIVE';
+    dot.className = 'dot live';
+    mb.textContent = 'LIVE';
+    mb.className = 'badge b-live ml-auto';
+  } else {
+    pill.textContent = 'PAUSED';
+    dot.className = 'dot amber';
+    mb.textContent = 'TẠM DỪNG';
+    mb.className = 'badge ml-auto';
+  }
+  const rolling = state.running && state.mode==='live';
+  diceEls.forEach(d => d.classList.toggle('rolling', rolling));
+  $('pauseLabel').textContent = state.running ? 'TẠM DỪNG' : 'TIẾP TỤC';
+  $('pauseBtn').disabled = (state.mode==='manual');
+  $('backLiveBtn').style.display = state.mode==='manual' ? 'inline-flex' : 'none';
+}
+
+/* ============================================================
+   LIVE LOOP — requestAnimationFrame, timestamp nhảy theo ms
+============================================================ */
+function tick(){
+  if (state.running && state.mode==='live' && typeof CryptoJS !== 'undefined'){
+    computeFor(Date.now());
+    renderEngine();
+    renderPredict();
+  }
+  requestAnimationFrame(tick);
+}
+
+/* ============================================================
+   FEEDBACK — ĐÚNG / SAI + ADAPTIVE BIAS
+============================================================ */
+function adaptBias(predictedSide){
+  // SAI: kết quả thực tế là cửa ngược lại → dịch bias sang cửa đó
+  if (predictedSide === 'XOÀI') state.bias = Math.min(BIAS_MAX, state.bias + 1);
+  else state.bias = Math.max(BIAS_MIN, state.bias - 1);
+  state.adjusts++;
+}
+
+function record(verdict){
+  if (typeof CryptoJS === 'undefined'){ toast('CryptoJS chưa sẵn sàng — không thể ghi nhận','err'); return; }
+  const n = state.logs.length + 1;
+  const row = {
+    id: n,
+    time: nowTime(),
+    ts: state.ts,
+    temp: +(+state.temp).toFixed(1),
+    lat: state.lat,
+    lng: state.lng,
+    md5: state.md5,
+    dice: [...state.dice],
+    sum: state.sum,
+    side: state.side,
+    conf: state.conf,
+    bias: state.bias,
+    source: state.mode==='manual' ? 'MD5 thủ công' : 'Seed động',
+    verdict
+  };
+  state.logs.push(row);
+  if (verdict === 'D'){
+    state.correct++;
+  } else {
+    state.wrong++;
+    adaptBias(row.side);
+  }
+  persist();
+  renderStats();
+  appendLogRow(row);
+  if (verdict === 'D'){
+    toast('Lượt #'+n+' — ĐÚNG (khớp thực tế). Độ chính xác tích lũy: ' + accPct().toFixed(1) + '%', 'ok');
+  } else {
+    toast('Lượt #'+n+' — SAI (lệch thực tế). Weight Bias đã điều chỉnh → ' + fmtBias(state.bias) + ' (ngưỡng ' + boundary().toFixed(1) + ')', 'warn');
+  }
+}
+
+/* ============================================================
+   LOG TABLE (unlimited, no delete) + CSV EXPORT
+============================================================ */
+function appendLogRow(r){
+  const empty = $('logEmpty');
+  if (empty) empty.remove();
+
+  const tbody = $('logBody');
+  const tr = document.createElement('tr');
+
+  const tdNum = document.createElement('td');
+  tdNum.className = 'mono dim';
+  tdNum.textContent = r.id;
+
+  const tdTime = document.createElement('td');
+  tdTime.className = 'mono';
+  tdTime.textContent = r.time;
+
+  const tdSrc = document.createElement('td');
+  const srcBadge = document.createElement('span');
+  srcBadge.className = 'badge ' + (r.source==='Seed động' ? 'b-live' : 'b-tay');
+  srcBadge.textContent = r.source==='Seed động' ? 'SEED' : 'TAY';
+  tdSrc.appendChild(srcBadge);
+
+  const tdEnv = document.createElement('td');
+  tdEnv.innerHTML = '<div class="mono">'+r.temp.toFixed(1)+'°C</div><div class="dim" style="font-size:10.5px">'+(r.lat===null||r.lng===null?'N/A':(+r.lat).toFixed(4)+', '+(+r.lng).toFixed(4))+'</div>';
+
+  const tdMd5 = document.createElement('td');
+  tdMd5.className = 'md5-cell mono';
+  tdMd5.textContent = r.md5.slice(0,8) + '…' + r.md5.slice(-4);
+  tdMd5.title = r.md5;
+  tdMd5.style.cursor = 'help';
+
+  const tdDice = document.createElement('td');
+  tdDice.className = 'mono';
+  tdDice.textContent = r.dice.join(' · ');
+
+  const tdSum = document.createElement('td');
+  tdSum.className = 'mono';
+  tdSum.style.fontWeight = '800';
+  tdSum.textContent = r.sum;
+
+  const tdSide = document.createElement('td');
+  const sideBadge = document.createElement('span');
+  sideBadge.className = 'badge ' + (r.side==='XOÀI' ? 'b-mango' : 'b-apple');
+  sideBadge.textContent = r.side;
+  tdSide.appendChild(sideBadge);
+
+  const tdConf = document.createElement('td');
+  tdConf.className = 'mono dim';
+  tdConf.textContent = r.conf.toFixed(1) + '%';
+
+  const tdVerdict = document.createElement('td');
+  const chip = document.createElement('span');
+  chip.className = 'chip ' + (r.verdict==='D' ? 'd' : 's');
+  chip.innerHTML = (r.verdict==='D'
+    ? '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 9 17 20 6"/></svg>'
+    : '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>')
+    + (r.verdict==='D' ? ' Đ' : ' S');
+  tdVerdict.appendChild(chip);
+
+  const tdBias = document.createElement('td');
+  tdBias.className = 'mono dim';
+  tdBias.textContent = fmtBias(r.bias);
+
+  tr.append(tdNum, tdTime, tdSrc, tdEnv, tdMd5, tdDice, tdSum, tdSide, tdConf, tdVerdict, tdBias);
+  tbody.prepend(tr);   // mới nhất lên đầu, giữ nguyên mọi dòng cũ
+}
+
+function stamp(){
+  const d = new Date();
+  return d.getFullYear() + pad2(d.getMonth()+1) + pad2(d.getDate()) + '-' + pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds());
+}
+
+function exportCSV(){
+  if (!state.logs.length){ toast('Chưa có lượt test nào để xuất CSV','warn'); return; }
+  const H = ['STT','ThoiGian','Nguon','Timestamp_ms','NhietDo_C','ViDo','KinhDo','MD5','Dice1','Dice2','Dice3','Tong','DuDoan','DoTinCay_%','DanhGia','Bias'];
+  const esc = v => '"' + String(v===null||v===undefined ? '' : v).replace(/"/g,'""') + '"';
+  const lines = state.logs.map((r,i) => [
+    i+1, r.time, r.source, r.ts, r.temp,
+    r.lat===null?'N/A':r.lat, r.lng===null?'N/A':r.lng,
+    r.md5, r.dice[0], r.dice[1], r.dice[2], r.sum,
+    r.side, r.conf, r.verdict==='D'?'ĐÚNG':'SAI', fmtBias(r.bias)
+  ].map(esc).join(','));
+  const csv = '\uFEFF' + H.map(esc).join(',') + '\n' + lines.join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8'}));
+  a.download = 'seed-dice-log_' + stamp() + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  toast('Đã xuất ' + state.logs.length + ' lượt test ra file CSV','ok');
+}
+
+/* ============================================================
+   MANUAL MD5
+============================================================ */
+function analyzeManual(){
+  const input = $('manualInput');
+  const raw = input.value.trim().toLowerCase();
+  if (!/^[0-9a-f]{32}$/.test(raw)){
+    toast('Chuỗi MD5 không hợp lệ — cần đúng 32 ký tự hex (0-9, a-f)','err');
+    input.classList.remove('shake');
+    void input.offsetWidth;
+    input.classList.add('shake');
+    input.focus();
+    return;
+  }
+  state.mode = 'manual';
+  state.manualMd5 = raw;
+  state.md5 = raw;
+  const r = hashToDice(raw);
+  state.dice = r.dice;
+  state.usedBytes = r.used;
+  state.sum = r.dice[0] + r.dice[1] + r.dice[2];
+  const c = classify(state.sum);
+  state.side = c.side;
+  state.conf = c.conf;
+  state.lastDice = [0,0,0];
+  renderEngine();
+  renderPredict();
+  updateStatus();
+  toast('Đã khóa phân tích MD5 thủ công — nhấn ĐÚNG/SAI để đánh giá lượt này','ok');
+}
+
+function backToLive(){
+  state.mode = 'live';
+  state.manualMd5 = null;
+  updateStatus();
+  toast('Đã quay về dòng Seed động','ok');
+}
+
+/* ============================================================
+   GEOLOCATION + OPEN-METEO (free, no API key)
+============================================================ */
+function fetchWeather(lat, lng){
+  state.weatherSource = 'Open-Meteo';
+  renderStats();
+  fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lng + '&current_weather=true')
+    .then(r => r.json())
+    .then(d => {
+      if (d && d.current_weather && typeof d.current_weather.temperature === 'number'){
+        if (!state.tempManual){
+          state.temp = d.current_weather.temperature;
+          $('tempInput').value = state.temp.toFixed(1);
         }
+        state.weatherSource = 'Open-Meteo';
+        state.weatherUpdatedAt = nowTime();
+        renderEngine();
+        renderStats();
+        toast('Nhiệt độ thực tế ' + state.temp.toFixed(1) + '°C từ Open-Meteo','ok');
+      } else {
+        throw new Error('bad payload');
+      }
+    })
+    .catch(() => {
+      if (!state.tempManual){ state.temp = 30; }
+      state.weatherSource = 'Mặc định';
+      renderEngine(); renderStats();
+      toast('Không lấy được thời tiết — đang dùng 30°C','warn');
+    });
+}
 
-        // Vẽ bãi phân ban đầu
-        drawPoopWithUserImage();
+function locateUser(){
+  if (!navigator.geolocation){
+    toast('Trình duyệt không hỗ trợ Geolocation','err');
+    return;
+  }
+  $('coordVal').textContent = 'Đang xin quyền vị trí…';
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      state.lat = pos.coords.latitude;
+      state.lng = pos.coords.longitude;
+      state.tempManual = false;
+      state.weatherSource = 'Thiết bị';
+      renderEngine(); renderStats();
+      fetchWeather(state.lat, state.lng);
+    },
+    () => {
+      state.lat = null; state.lng = null;
+      if (!state.tempManual) state.temp = 30;
+      state.weatherSource = 'Mặc định';
+      renderEngine(); renderStats();
+      toast('Bị từ chối vị trí — dùng nhiệt độ mặc định 30°C','warn');
+    },
+    { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+  );
+}
 
-        const texture = new THREE.CanvasTexture(canvas);
-        const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
-        const poopSprite = new THREE.Sprite(material);
-        poopSprite.scale.set(28, 28, 1);
-        scene.add(poopSprite);
+function applyManualCoords(){
+  const input = $('coordInput');
+  const parts = input.value.split(',');
+  const la = parseFloat(parts[0]);
+  const lo = parseFloat(parts[1]);
+  if (parts.length !== 2 || isNaN(la) || isNaN(lo) || la < -90 || la > 90 || lo < -180 || lo > 180){
+    toast('Tọa độ không hợp lệ — định dạng: Vĩ độ, Kinh độ (VD: 10.7769, 106.7009)','err');
+    input.classList.remove('shake');
+    void input.offsetWidth;
+    input.classList.add('shake');
+    input.focus();
+    return;
+  }
+  state.lat = la;
+  state.lng = lo;
+  state.tempManual = false;
+  renderEngine();
+  toast('Đã áp dụng tọa độ ' + la.toFixed(4) + ', ' + lo.toFixed(4) + ' — đang lấy nhiệt độ…','ok');
+  fetchWeather(la, lo);
+}
 
-        // Load ảnh IMG_0501.jpeg lồng vào
-        const img = new Image();
-        img.crossOrigin = "Anonymous";
-        img.src = 'IMG_0501.jpeg';
-        img.onload = () => {
-            drawPoopWithUserImage(img);
-            texture.needsUpdate = true;
-        };
+/* ============================================================
+   PERSISTENCE (session + localStorage backup)
+============================================================ */
+function persist(){
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      bias: state.bias,
+      adjusts: state.adjusts,
+      logs: state.logs.slice(-500)
+    }));
+  } catch(e){ /* storage đầy hoặc bị chặn — vẫn giữ trong RAM */ }
+}
 
-        // 3. MEDIAPIPE HANDS DETECT
-        let openHandFactor = 0;
-        function onResults(results) {
-            document.getElementById('loading').style.opacity = '0';
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                const hand = results.multiHandLandmarks[0];
-                const wrist = hand[0];
-                let totalDist = 0;
-                const tips = [4, 8, 12, 16, 20];
-                tips.forEach(idx => {
-                    totalDist += Math.hypot(hand[idx].x - wrist.x, hand[idx].y - wrist.y);
-                });
-                let avgDist = totalDist / 5;
-                let targetFactor = THREE.MathUtils.mapLinear(avgDist, 0.25, 0.48, 0, 1);
-                openHandFactor = THREE.MathUtils.clamp(targetFactor, 0, 1);
-            } else {
-                openHandFactor = 0;
-            }
-        }
+function restore(){
+  try {
+    const d = JSON.parse(localStorage.getItem(LS_KEY));
+    if (!d) return;
+    if (Array.isArray(d.logs)){
+      state.logs = d.logs;
+      state.logs.forEach(r => { if (r.verdict==='D') state.correct++; else state.wrong++; });
+    }
+    if (typeof d.bias === 'number'){
+      state.bias = d.bias;
+      state.adjusts = d.adjusts || 0;
+    }
+  } catch(e){}
+}
 
-        const hands = new Hands({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-        });
-        hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
-        hands.onResults(onResults);
+/* ============================================================
+   INIT
+============================================================ */
+let diceEls = [];
 
-        const videoElement = document.getElementById('webcam');
-        const cameraUtils = new Camera(videoElement, {
-            onFrame: async () => { await hands.send({ image: videoElement }); },
-            width: 640, height: 480
-        });
-        cameraUtils.start();
+function init(){
+  // Build 16 byte spans
+  const box = $('md5Box');
+  for (let i=0;i<16;i++){
+    const s = document.createElement('span');
+    s.className = 'hb mono' + ((i+1)%4===0 ? ' sep' : '');
+    s.textContent = '00';
+    box.appendChild(s);
+    byteSpans.push(s);
+  }
 
-        // 4. ANIMATION LOOP
-        let clock = new THREE.Clock();
-        let currentFactor = 0;
+  // Build pips for 3 dice
+  diceEls = [$('dice1'), $('dice2'), $('dice3')];
+  diceEls.forEach(d => {
+    for (let i=1;i<=7;i++){
+      const p = document.createElement('div');
+      p.className = 'pip p' + i;
+      d.appendChild(p);
+    }
+  });
 
-        function animate() {
-            requestAnimationFrame(animate);
-            let time = clock.getElapsedTime();
-            currentFactor += (openHandFactor - currentFactor) * 0.1;
+  restore();
 
-            // Đống phân lắc lư nhún nhảy
-            poopSprite.rotation.z = Math.sin(time * 2) * 0.1;
-            
-            // Xòe tay ra thì bãi phân phóng to cực đại & biến mất!
-            let scaleVal = 28 * (1 + currentFactor * 1.5);
-            poopSprite.scale.set(scaleVal, scaleVal, 1);
-            material.opacity = 1 - currentFactor;
+  // Khôi phục nhật ký đã lưu
+  state.logs.forEach(r => appendLogRow(r));
 
-            renderer.render(scene, camera);
-        }
-        animate();
+  // Frame đầu tiên
+  if (typeof CryptoJS !== 'undefined'){
+    computeFor(Date.now());
+  } else {
+    $('cryptoWarn').hidden = false;
+    $('pauseBtn').disabled = $('correctBtn').disabled = $('wrongBtn').disabled = $('analyzeBtn').disabled = true;
+    toast('Không tải được CryptoJS — kiểm tra kết nối mạng','err');
+  }
+  renderEngine();
+  renderPredict();
+  renderStats();
+  updateStatus();
 
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-    </script>
+  // Live loop
+  requestAnimationFrame(tick);
+
+  // Clock
+  $('clock').textContent = nowTime();
+  setInterval(() => { $('clock').textContent = nowTime(); }, 1000);
+
+  // Auto định vị + thời tiết
+  locateUser();
+
+  // Events
+  $('pauseBtn').addEventListener('click', () => {
+    if (state.mode==='manual') return;
+    state.running = !state.running;
+    updateStatus();
+    toast(state.running ? 'Đã TIẾP TỤC dòng Seed động' : 'Đã TẠM DỪNG — giá trị hiện tại được giữ nguyên', state.running ? 'ok' : 'warn');
+  });
+  $('correctBtn').addEventListener('click', () => record('D'));
+  $('wrongBtn').addEventListener('click', () => record('S'));
+  $('analyzeBtn').addEventListener('click', analyzeManual);
+  $('backLiveBtn').addEventListener('click', backToLive);
+  $('manualInput').addEventListener('keydown', e => { if (e.key==='Enter') analyzeManual(); });
+  $('csvBtn').addEventListener('click', exportCSV);
+  $('locateBtn').addEventListener('click', locateUser);
+  $('applyCoordBtn').addEventListener('click', applyManualCoords);
+  $('coordInput').addEventListener('keydown', e => { if (e.key==='Enter') applyManualCoords(); });
+  $('tempInput').addEventListener('change', e => {
+    const v = parseFloat(e.target.value);
+    if (isNaN(v)) return;
+    state.temp = Math.max(-60, Math.min(60, v));
+    state.tempManual = true;
+    state.weatherSource = 'Thủ công';
+    state.weatherUpdatedAt = nowTime();
+    renderEngine();
+    renderStats();
+    toast('Nhiệt độ thủ công: ' + state.temp.toFixed(1) + '°C','ok');
+  });
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
 </body>
 </html>
