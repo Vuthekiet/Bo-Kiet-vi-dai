@@ -2,793 +2,841 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
-<title>🎲 XÚC XẮC TIÊN TRI</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
+<title>🎲 XÚC XẮC TIÊN TRI v3</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 <style>
-/* ===== DESIGN TOKENS ===== */
-:root {
-  --bg:        #0a0c10;
-  --surface:   #111520;
-  --surface2:  #181e2e;
-  --border:    #252d42;
-  --xoai:      #f5c518;
-  --xoai-glow: rgba(245,197,24,.25);
-  --tao:       #3ec6f5;
-  --tao-glow:  rgba(62,198,245,.22);
-  --ok:        #22d47a;
-  --err:       #ff4d6d;
-  --muted:     #5a6785;
-  --text:      #d0daf0;
-  --text-dim:  #8694b0;
-  --radius:    14px;
-  --radius-sm: 8px;
-  --font:      'Segoe UI', system-ui, sans-serif;
-  --mono:      'Courier New', monospace;
-  --trans:     .18s ease;
+:root{
+  --bg:#090c12; --sur:#101624; --sur2:#161f30; --bdr:#222d40;
+  --xoai:#f5c518; --xg:rgba(245,197,24,.22);
+  --tao:#3ec6f5;  --tg:rgba(62,198,245,.2);
+  --ok:#22d47a;   --err:#ff4d6d; --warn:#f5a623;
+  --mut:#4e6080;  --txt:#ccd6f0; --dim:#7a8faa;
+  --r:14px; --rs:8px;
+  --font:'Segoe UI',system-ui,sans-serif;
+  --mono:'Courier New',monospace;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{font-size:16px;scroll-behavior:smooth}
-body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+html{font-size:16px}
+body{font-family:var(--font);background:var(--bg);color:var(--txt);min-height:100vh;-webkit-font-smoothing:antialiased}
 button{font-family:inherit;cursor:pointer;border:none;outline:none}
 input,textarea{font-family:inherit}
 
-/* ===== LAYOUT ===== */
-.app{max-width:700px;margin:0 auto;padding:16px 12px 80px;display:flex;flex-direction:column;gap:14px;}
+/* layout */
+.app{max-width:700px;margin:0 auto;padding:14px 11px 88px;display:flex;flex-direction:column;gap:12px}
 
-/* ===== HEADER ===== */
-.header{text-align:center;padding:20px 0 10px;}
-.header h1{font-size:clamp(1.35rem,5vw,1.9rem);font-weight:800;letter-spacing:-.5px;color:#fff;}
-.header p{font-size:.78rem;color:var(--text-dim);margin-top:4px;}
+/* header */
+.hdr{text-align:center;padding:18px 0 8px}
+.hdr h1{font-size:clamp(1.3rem,5vw,1.85rem);font-weight:900;letter-spacing:-.5px;color:#fff}
+.hdr p{font-size:.74rem;color:var(--dim);margin-top:4px}
 
-/* ===== CARD ===== */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;}
-.card-label{font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;}
+/* card */
+.card{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);padding:14px}
+.clabel{font-size:.65rem;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.09em;margin-bottom:9px}
 
-/* ===== PREDICTION HERO ===== */
-.pred-hero{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px 16px 18px;text-align:center;transition:border-color var(--trans), box-shadow var(--trans);}
-.pred-hero.xoai{border-color:var(--xoai);box-shadow:0 0 32px var(--xoai-glow),inset 0 0 40px var(--xoai-glow);}
-.pred-hero.tao{border-color:var(--tao);box-shadow:0 0 32px var(--tao-glow),inset 0 0 40px var(--tao-glow);}
-.pred-label{font-size:.7rem;color:var(--text-dim);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;}
-.pred-result{font-size:clamp(3.5rem,15vw,5.5rem);font-weight:900;line-height:1;letter-spacing:-2px;transition:color var(--trans);}
-.pred-hero.xoai .pred-result{color:var(--xoai);text-shadow:0 0 40px var(--xoai);}
-.pred-hero.tao  .pred-result{color:var(--tao);text-shadow:0 0 40px var(--tao);}
-.pred-sub{display:flex;justify-content:center;gap:18px;margin-top:12px;flex-wrap:wrap;}
-.pred-sub span{font-size:.78rem;color:var(--text-dim);}
-.pred-sub strong{color:var(--text);}
-.confidence-bar{height:5px;background:var(--border);border-radius:99px;margin-top:14px;overflow:hidden;}
-.confidence-fill{height:100%;border-radius:99px;transition:width .3s ease, background .3s ease;}
-.xoai .confidence-fill{background:var(--xoai);}
-.tao  .confidence-fill{background:var(--tao);}
+/* hero */
+.hero{background:var(--sur);border:2px solid var(--bdr);border-radius:var(--r);padding:20px 14px 16px;text-align:center;transition:border-color .2s,box-shadow .2s}
+.hero.xoai{border-color:var(--xoai);box-shadow:0 0 36px var(--xg),inset 0 0 48px var(--xg)}
+.hero.tao {border-color:var(--tao); box-shadow:0 0 36px var(--tg),inset 0 0 48px var(--tg)}
+.hlabel{font-size:.68rem;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;margin-bottom:4px}
+.hresult{font-size:clamp(3.4rem,14vw,5.4rem);font-weight:900;line-height:1;letter-spacing:-2px;transition:color .2s}
+.hero.xoai .hresult{color:var(--xoai);text-shadow:0 0 44px var(--xoai)}
+.hero.tao  .hresult{color:var(--tao); text-shadow:0 0 44px var(--tao)}
+.hsub{display:flex;justify-content:center;gap:16px;margin-top:10px;flex-wrap:wrap}
+.hsub span{font-size:.76rem;color:var(--dim)}
+.hsub strong{color:var(--txt)}
+/* bias-modified indicator */
+.bias-mod-tag{display:inline-block;font-size:.6rem;padding:2px 8px;border-radius:99px;
+  background:rgba(245,166,35,.15);color:var(--warn);border:1px solid rgba(245,166,35,.3);
+  margin-left:6px;vertical-align:middle;display:none}
+.bias-mod-tag.show{display:inline-block}
+.cbar{height:4px;background:var(--bdr);border-radius:99px;margin-top:12px;overflow:hidden}
+.cfill{height:100%;border-radius:99px;transition:width .25s,background .25s}
+.xoai .cfill{background:var(--xoai)} .tao .cfill{background:var(--tao)}
 
-/* ===== DICE ROW ===== */
-.dice-row{display:flex;justify-content:center;gap:12px;margin-top:10px;}
-.die{width:44px;height:44px;background:var(--surface2);border:2px solid var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:900;color:#fff;transition:border-color var(--trans), box-shadow var(--trans);}
-.xoai .die{border-color:var(--xoai);box-shadow:0 0 10px var(--xoai-glow);}
-.tao  .die{border-color:var(--tao);box-shadow:0 0 10px var(--tao-glow);}
+/* dice */
+.dice-row{display:flex;justify-content:center;gap:10px;margin-top:8px}
+.die{width:42px;height:42px;background:var(--sur2);border:2px solid var(--bdr);border-radius:9px;
+  display:flex;align-items:center;justify-content:center;font-size:1.45rem;font-weight:900;color:#fff;
+  transition:border-color .2s,box-shadow .2s}
+.xoai .die{border-color:var(--xoai);box-shadow:0 0 10px var(--xg)}
+.tao  .die{border-color:var(--tao); box-shadow:0 0 10px var(--tg)}
 
-/* ===== CLOCK ===== */
-.clock-row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
-.clock{font-size:.8rem;font-family:var(--mono);color:var(--text-dim);flex:1;min-width:0;}
-.clock span{color:var(--text);}
-.paused-badge{font-size:.65rem;background:#ff4d6d22;color:#ff4d6d;border:1px solid #ff4d6d55;border-radius:99px;padding:2px 9px;display:none;}
-.paused-badge.show{display:inline;}
+/* clock */
+.crow{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.clk{font-size:.78rem;font-family:var(--mono);color:var(--dim);flex:1;min-width:0}
+.clk span{color:var(--txt)}
+.pbadge{font-size:.62rem;background:#ff4d6d18;color:var(--err);border:1px solid #ff4d6d44;
+  border-radius:99px;padding:2px 8px;display:none}
+.pbadge.show{display:inline}
 
-/* ===== MD5 DISPLAY ===== */
-.md5-display{font-family:var(--mono);font-size:.65rem;color:var(--text-dim);word-break:break-all;line-height:1.6;padding:8px 10px;background:var(--bg);border-radius:var(--radius-sm);border:1px solid var(--border);min-height:36px;user-select:all;}
+/* md5 box */
+.md5box{font-family:var(--mono);font-size:.63rem;color:var(--dim);word-break:break-all;
+  line-height:1.6;padding:7px 9px;background:var(--bg);border-radius:var(--rs);
+  border:1px solid var(--bdr);min-height:34px;user-select:all}
+.sinfo{font-size:.66rem;font-family:var(--mono);color:var(--dim);padding:7px 9px;
+  background:var(--bg);border-radius:var(--rs);border:1px solid var(--bdr);
+  word-break:break-all;line-height:1.7;margin-top:7px}
+.sinfo strong{color:var(--txt)}
 
-/* ===== CONTROLS ===== */
-.ctrl-row{display:flex;gap:8px;flex-wrap:wrap;}
-.btn{flex:1;min-width:100px;padding:11px 10px;border-radius:var(--radius-sm);font-size:.82rem;font-weight:700;transition:opacity var(--trans), transform .1s;}
-.btn:active{transform:scale(.97);}
-.btn-primary{background:linear-gradient(135deg,#2563eb,#1e3fa8);color:#fff;}
-.btn-pause{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
-.btn-ok{background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;}
-.btn-err{background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;}
-.btn-csv{background:var(--surface2);color:var(--tao);border:1px solid var(--tao);font-size:.76rem;}
-.btn:disabled{opacity:.4;cursor:not-allowed;}
+/* btn */
+.btn{flex:1;min-width:90px;padding:11px 9px;border-radius:var(--rs);font-size:.8rem;font-weight:700;transition:.15s}
+.btn:active{transform:scale(.97)}
+.bp{background:var(--sur2);color:var(--txt);border:1px solid var(--bdr)}
+.bpri{background:linear-gradient(135deg,#2563eb,#1d3fa6);color:#fff}
+.bok{background:linear-gradient(135deg,#15803d,#166534);color:#fff}
+.berr{background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff}
+.bcsv{background:var(--sur2);color:var(--tao);border:1px solid var(--tao);font-size:.73rem}
+.btn:disabled{opacity:.38;cursor:not-allowed}
+.ctrl{display:flex;gap:8px;flex-wrap:wrap}
 
-/* ===== INPUTS ===== */
-.input-group{display:flex;flex-direction:column;gap:5px;}
-.input-group label{font-size:.7rem;color:var(--text-dim);}
-.input-group input,.input-group textarea{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:9px 11px;font-size:.82rem;width:100%;transition:border-color var(--trans);}
-.input-group input:focus,.input-group textarea:focus{outline:none;border-color:var(--tao);}
-.input-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.md5-input{font-family:var(--mono);font-size:.7rem;resize:none;height:60px;}
+/* inputs */
+.ig{display:flex;flex-direction:column;gap:4px}
+.ig label{font-size:.68rem;color:var(--dim)}
+.ig input,.ig textarea{background:var(--bg);border:1px solid var(--bdr);border-radius:var(--rs);
+  color:var(--txt);padding:8px 10px;font-size:.8rem;width:100%;transition:.15s}
+.ig input:focus,.ig textarea:focus{outline:none;border-color:var(--tao)}
+.igrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.md5ta{font-family:var(--mono);font-size:.68rem;resize:none;height:58px}
 
-/* ===== SEED INFO ===== */
-.seed-info{font-size:.68rem;font-family:var(--mono);color:var(--text-dim);padding:8px 10px;background:var(--bg);border-radius:var(--radius-sm);border:1px solid var(--border);word-break:break-all;line-height:1.7;}
-.seed-info strong{color:var(--text);}
+/* bias panel */
+.bpanel{font-size:.74rem;color:var(--dim)}
+.brow{display:flex;justify-content:space-between;align-items:center;
+  padding:6px 0;border-bottom:1px solid var(--bdr)}
+.brow:last-child{border:none}
+.bbadge{display:inline-block;font-size:.58rem;padding:1px 7px;border-radius:99px;margin-left:5px;vertical-align:middle}
+.bon{background:#22d47a18;color:var(--ok);border:1px solid #22d47a44}
+.boff{background:#4e608018;color:var(--mut);border:1px solid #4e608044}
+.bwarn{background:rgba(245,166,35,.15);color:var(--warn);border:1px solid rgba(245,166,35,.35)}
 
-/* ===== BIAS PANEL ===== */
-.bias-panel{font-size:.75rem;color:var(--text-dim);}
-.bias-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);}
-.bias-row:last-child{border:none;}
-.bias-badge{display:inline-block;font-size:.6rem;padding:1px 7px;border-radius:99px;margin-left:5px;vertical-align:middle;}
-.badge-on{background:#22d47a22;color:#22d47a;border:1px solid #22d47a55;}
-.badge-off{background:#5a678522;color:#5a6785;border:1px solid #5a678555;}
+/* stats */
+.sgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center}
+.sbox{background:var(--bg);border:1px solid var(--bdr);border-radius:var(--rs);padding:9px 5px}
+.sval{font-size:1.25rem;font-weight:800;color:#fff;line-height:1}
+.slbl{font-size:.6rem;color:var(--mut);margin-top:3px}
 
-/* ===== STATS ===== */
-.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center;}
-.stat-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 6px;}
-.stat-val{font-size:1.3rem;font-weight:800;color:#fff;line-height:1;}
-.stat-lbl{font-size:.62rem;color:var(--muted);margin-top:3px;}
+/* log table */
+.lwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;max-height:360px;overflow-y:auto}
+.ltbl{width:100%;border-collapse:collapse;font-size:.67rem}
+.ltbl th{background:var(--bg);color:var(--mut);font-weight:600;text-transform:uppercase;
+  letter-spacing:.05em;padding:6px 7px;text-align:left;white-space:nowrap;
+  position:sticky;top:0;z-index:1}
+.ltbl td{padding:5px 7px;border-bottom:1px solid var(--bdr);white-space:nowrap;color:var(--dim)}
+.ltbl tr:last-child td{border:none}
+.ltbl tr:hover td{background:var(--sur2)}
+.tx{color:var(--xoai);font-weight:700} .tt{color:var(--tao);font-weight:700}
+.tok{color:var(--ok);font-weight:700}  .terr{color:var(--err);font-weight:700}
+.tmu{color:var(--mut)}
+.lempty{text-align:center;color:var(--mut);font-size:.73rem;padding:22px}
 
-/* ===== LOG TABLE ===== */
-.log-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-.log-table{width:100%;border-collapse:collapse;font-size:.68rem;}
-.log-table th{background:var(--bg);color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:7px 8px;text-align:left;white-space:nowrap;}
-.log-table td{padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap;color:var(--text-dim);}
-.log-table tr:last-child td{border:none;}
-.log-table tr:hover td{background:var(--surface2);}
-.tag-xoai{color:var(--xoai);font-weight:700;}
-.tag-tao{color:var(--tao);font-weight:700;}
-.tag-ok{color:var(--ok);font-weight:700;}
-.tag-err{color:var(--err);font-weight:700;}
-.tag-none{color:var(--muted);}
-.log-empty{text-align:center;color:var(--muted);font-size:.75rem;padding:24px;}
+/* weather */
+.wxrow{font-size:.67rem;padding:6px 9px;border-radius:var(--rs);background:var(--bg);
+  border:1px solid var(--bdr);color:var(--dim);display:flex;align-items:center;gap:6px}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dok{background:var(--ok);box-shadow:0 0 6px var(--ok)}
+.dwarn{background:var(--warn);box-shadow:0 0 6px var(--warn)}
+.derr{background:var(--err)}
 
-/* ===== TOAST ===== */
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:10px 22px;font-size:.8rem;color:var(--text);pointer-events:none;transition:transform .3s ease, opacity .3s ease;opacity:0;z-index:999;white-space:nowrap;}
-.toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+/* section toggle */
+.shead{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none}
+.shead .arr{font-size:.72rem;color:var(--mut);transition:.18s}
+.shead.open .arr{transform:rotate(180deg)}
+.sbody{display:none;margin-top:10px}
+.sbody.open{display:block}
 
-/* ===== WEATHER STATUS ===== */
-.weather-status{font-size:.68rem;padding:6px 10px;border-radius:var(--radius-sm);background:var(--bg);border:1px solid var(--border);color:var(--text-dim);display:flex;align-items:center;gap:6px;}
-.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
-.dot-ok{background:var(--ok);box-shadow:0 0 6px var(--ok);}
-.dot-warn{background:#f5c518;box-shadow:0 0 6px #f5c518;}
-.dot-err{background:var(--err);}
+/* locked pred display */
+.lockbox{background:var(--bg);border:1px solid var(--bdr);border-radius:var(--rs);
+  padding:8px 11px;margin-bottom:10px;font-size:.74rem;line-height:1.6}
 
-/* ===== SECTION TOGGLE ===== */
-.section-head{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;}
-.section-head .arrow{font-size:.75rem;color:var(--muted);transition:transform var(--trans);}
-.section-head.open .arrow{transform:rotate(180deg);}
-.section-body{overflow:hidden;display:none;margin-top:10px;}
-.section-body.open{display:block;}
+/* toast */
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(72px);
+  background:var(--sur);border:1px solid var(--bdr);border-radius:99px;
+  padding:9px 20px;font-size:.78rem;color:var(--txt);pointer-events:none;
+  transition:.28s;opacity:0;z-index:999;white-space:nowrap;max-width:calc(100vw - 32px)}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
 
-/* ===== MISC ===== */
-::-webkit-scrollbar{width:4px;height:4px;}
-::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px;}
-@media(min-width:640px){.app{padding:24px 20px 80px;}}
+/* scrollbar */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:99px}
+
+@media(min-width:640px){.app{padding:22px 18px 80px}}
 </style>
 </head>
 <body>
 <div class="app">
 
-  <!-- HEADER -->
-  <div class="header">
-    <h1>🎲 XÚC XẮC TIÊN TRI</h1>
-    <p>Seed động: Timestamp · Nhiệt độ thực tế · Tọa độ GPS → MD5 → Dự đoán XOÀI / TÁO</p>
-  </div>
+<!-- HEADER -->
+<div class="hdr">
+  <h1>🎲 XÚC XẮC TIÊN TRI</h1>
+  <p>Seed: Timestamp · Nhiệt độ GPS · Tọa độ → MD5 → XOÀI (3-10) / TÁO (11-18)</p>
+</div>
 
-  <!-- HERO PREDICTION -->
-  <div class="pred-hero" id="predHero">
-    <div class="pred-label">DỰ ĐOÁN CỬA</div>
-    <div class="pred-result" id="predResult">—</div>
-    <div class="dice-row" id="diceRow">
-      <div class="die" id="d1">?</div>
-      <div class="die" id="d2">?</div>
-      <div class="die" id="d3">?</div>
-    </div>
-    <div class="pred-sub">
-      <span>Tổng thô: <strong id="diceSum">—</strong></span>
-      <span>Tin cậy: <strong id="confidence">—%</strong></span>
-      <span>Bias cơ chế: <strong id="biasActive">1</strong></span>
-    </div>
-    <div class="confidence-bar"><div class="confidence-fill" id="confFill" style="width:50%"></div></div>
+<!-- HERO -->
+<div class="hero" id="predHero">
+  <div class="hlabel">DỰ ĐOÁN CỬA</div>
+  <div class="hresult" id="predResult">—
+    <span class="bias-mod-tag" id="biasModTag">BIAS</span>
   </div>
+  <div class="dice-row">
+    <div class="die" id="d1">?</div>
+    <div class="die" id="d2">?</div>
+    <div class="die" id="d3">?</div>
+  </div>
+  <div class="hsub">
+    <span>Tổng: <strong id="diceSum">—</strong></span>
+    <span>Adj: <strong id="diceAdj">—</strong></span>
+    <span>Tin cậy: <strong id="confidence">—</strong></span>
+    <span>Cơ chế: <strong id="biasActive">1</strong></span>
+  </div>
+  <div class="cbar"><div class="cfill" id="cfill" style="width:50%"></div></div>
+</div>
 
-  <!-- CLOCK & PAUSE -->
-  <div class="card">
-    <div class="clock-row">
-      <div class="clock">
-        🕐 <span id="clockDisplay">00:00:00.000</span>
-        <span class="paused-badge" id="pausedBadge">PAUSED</span>
+<!-- CLOCK -->
+<div class="card">
+  <div class="crow">
+    <div class="clk">🕐 <span id="clockDisp">00:00:00.000</span>
+      <span class="pbadge" id="pbadge">PAUSED</span>
+    </div>
+    <button class="btn bp" id="btnPause" onclick="togglePause()">⏸ Tạm dừng</button>
+  </div>
+</div>
+
+<!-- MD5 LIVE -->
+<div class="card">
+  <div class="clabel">🔑 MD5 Hash — Seed hiện tại</div>
+  <div class="md5box" id="md5Live" title="Nhấn để chọn">—</div>
+  <div class="sinfo" id="seedInfo">Seed: chờ dữ liệu...</div>
+</div>
+
+<!-- MD5 MANUAL -->
+<div class="card">
+  <div class="shead" id="hManual" onclick="toggleSec('bManual','hManual')">
+    <span class="clabel" style="margin:0">✏️ Dán MD5 thủ công</span>
+    <span class="arr">▼</span>
+  </div>
+  <div class="sbody" id="bManual">
+    <div class="ig" style="margin-top:10px">
+      <label>Dán chuỗi MD5 (32 ký tự hex) — phân tích ngay lập tức</label>
+      <textarea class="md5ta" id="md5Input" placeholder="Dán MD5 vào đây..."></textarea>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <div id="manualRes" class="sinfo" style="flex:1;display:none;margin-top:0"></div>
+      <button class="btn bp" onclick="clearManual()" style="flex:none;min-width:auto;padding:7px 11px;font-size:.72rem">✕ Xóa</button>
+    </div>
+  </div>
+</div>
+
+<!-- WEATHER -->
+<div class="card">
+  <div class="shead" id="hWeather" onclick="toggleSec('bWeather','hWeather')">
+    <span class="clabel" style="margin:0">🌡️ Vị trí & Thời tiết</span>
+    <span class="arr">▼</span>
+  </div>
+  <div class="sbody" id="bWeather">
+    <div style="display:flex;flex-direction:column;gap:9px;margin-top:10px">
+      <div class="wxrow"><div class="dot dwarn" id="wxDot"></div><span id="wxTxt">Đang xin quyền vị trí...</span></div>
+      <div class="igrid">
+        <div class="ig"><label>Vĩ độ (Latitude)</label><input type="number" id="iLat" step="any" placeholder="21.0285" oninput="onGeoIn()"/></div>
+        <div class="ig"><label>Kinh độ (Longitude)</label><input type="number" id="iLon" step="any" placeholder="105.8542" oninput="onGeoIn()"/></div>
       </div>
-      <button class="btn btn-pause" id="btnPause" onclick="togglePause()">⏸ Tạm dừng</button>
+      <div class="ig"><label>Nhiệt độ thủ công (°C)</label><input type="number" id="iTemp" step="0.1" placeholder="30.0" oninput="onTempIn()"/></div>
+      <button class="btn bpri" onclick="fetchLoc()" style="width:100%">📍 Cập nhật vị trí & nhiệt độ</button>
     </div>
   </div>
+</div>
 
-  <!-- MD5 LIVE -->
-  <div class="card">
-    <div class="card-label">🔑 MD5 Hash (Seed hiện tại)</div>
-    <div class="md5-display" id="md5Live" title="Nhấn để chọn toàn bộ">—</div>
-    <div style="margin-top:8px" class="seed-info" id="seedInfo">Seed: chờ dữ liệu...</div>
+<!-- FEEDBACK -->
+<div class="card">
+  <div class="clabel">📊 Đánh giá kết quả thực tế</div>
+  <p style="font-size:.73rem;color:var(--dim);margin-bottom:9px">Gieo xúc xắc thật → so sánh với dự đoán đã khóa bên dưới → bấm:</p>
+  <div class="lockbox" id="lockDisplay">
+    <span style="color:var(--dim)">Chưa có — bấm ⏸ Tạm dừng hoặc dán MD5 để khóa dự đoán</span>
   </div>
+  <div class="ctrl">
+    <button class="btn bok"  id="btnOk"  onclick="feedback(true)"  disabled>✅ ĐÚNG</button>
+    <button class="btn berr" id="btnErr" onclick="feedback(false)" disabled>❌ SAI</button>
+  </div>
+  <div id="fbHint" style="margin-top:8px;font-size:.68rem;color:var(--mut)">Chưa có phản hồi nào.</div>
+</div>
 
-  <!-- MD5 MANUAL INPUT -->
-  <div class="card">
-    <div class="section-head" id="headManual" onclick="toggleSection('bodyManual','headManual')">
-      <span class="card-label" style="margin:0">✏️ Dán MD5 thủ công</span>
-      <span class="arrow">▼</span>
-    </div>
-    <div class="section-body" id="bodyManual">
-      <div class="input-group" style="margin-top:10px">
-        <label>Dán chuỗi MD5 (32 ký tự hex) — phân tích ngay khi dán đủ 32 ký tự</label>
-        <textarea class="md5-input" id="md5ManualInput" placeholder="Dán MD5 vào đây..."></textarea>
+<!-- ADAPTIVE BIAS -->
+<div class="card">
+  <div class="shead" id="hBias" onclick="toggleSec('bBias','hBias')">
+    <span class="clabel" style="margin:0">⚙️ Adaptive Bias</span>
+    <span class="arr">▼</span>
+  </div>
+  <div class="sbody" id="bBias">
+    <div class="bpanel" style="margin-top:10px">
+      <div class="brow">
+        <span>Cơ chế 1 — Đảo ngược dự đoán<span class="bbadge bon" id="b1badge">THƯỜNG TRỰC</span></span>
+        <span style="font-family:var(--mono);font-size:.68rem">Streak: <strong id="b1s">0</strong>/3</span>
       </div>
-      <div style="margin-top:8px;display:flex;gap:8px">
-        <div id="manualResult" class="seed-info" style="flex:1;display:none"></div>
-        <button class="btn btn-pause" onclick="clearManualMD5()" style="flex:none;min-width:auto;padding:8px 12px;font-size:.75rem">✕ Xóa</button>
+      <div class="brow">
+        <span>Cơ chế 2 — Dịch ngưỡng cut-off<span class="bbadge boff" id="b2badge">OFF</span></span>
+        <span style="font-family:var(--mono);font-size:.68rem">Cut-off: <strong id="b2co">10.5</strong> · Streak: <strong id="b2s">0</strong>/3</span>
       </div>
-    </div>
-  </div>
-
-  <!-- WEATHER & LOCATION -->
-  <div class="card">
-    <div class="section-head" id="headWeather" onclick="toggleSection('bodyWeather','headWeather')">
-      <span class="card-label" style="margin:0">🌡️ Vị trí & Thời tiết</span>
-      <span class="arrow">▼</span>
-    </div>
-    <div class="section-body" id="bodyWeather">
-      <div style="margin-top:10px;display:flex;flex-direction:column;gap:10px">
-        <div class="weather-status">
-          <div class="dot dot-warn" id="weatherDot"></div>
-          <span id="weatherText">Đang xin quyền vị trí...</span>
-        </div>
-        <div class="input-grid">
-          <div class="input-group">
-            <label>Vĩ độ (Latitude)</label>
-            <input type="number" id="inputLat" step="any" placeholder="21.0285" oninput="onGeoManual()"/>
-          </div>
-          <div class="input-group">
-            <label>Kinh độ (Longitude)</label>
-            <input type="number" id="inputLon" step="any" placeholder="105.8542" oninput="onGeoManual()"/>
-          </div>
-        </div>
-        <div class="input-group">
-          <label>Nhiệt độ thủ công (°C) — ghi đè tự động</label>
-          <input type="number" id="inputTemp" step="0.1" placeholder="30.0" oninput="onTempManual()"/>
-        </div>
-        <button class="btn btn-primary" onclick="fetchLocation()" style="width:100%">📍 Cập nhật vị trí & nhiệt độ</button>
+      <div class="brow">
+        <span>Cơ chế 3 — Offset tổng điểm<span class="bbadge boff" id="b3badge">OFF</span></span>
+        <span style="font-family:var(--mono);font-size:.68rem">Offset: <strong id="b3of">+0</strong></span>
       </div>
-    </div>
-  </div>
-
-  <!-- FEEDBACK -->
-  <div class="card">
-    <div class="card-label">📊 Đánh giá kết quả thực tế</div>
-    <p style="font-size:.75rem;color:var(--text-dim);margin-bottom:10px">Sau khi gieo xúc xắc thật → so sánh với dự đoán đã khóa → bấm kết quả:</p>
-    <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;margin-bottom:10px;font-size:.75rem;">
-      Dự đoán đã khóa: <strong id="lockedPredDisplay" style="color:var(--text-dim)">Chưa có (bấm Tạm dừng hoặc dán MD5 để khóa)</strong>
-    </div>
-    <div class="ctrl-row">
-      <button class="btn btn-ok" onclick="feedback(true)">✅ ĐÚNG — Khớp thực tế</button>
-      <button class="btn btn-err" onclick="feedback(false)">❌ SAI — Lệch thực tế</button>
-    </div>
-    <div id="feedbackHint" style="margin-top:8px;font-size:.7rem;color:var(--muted)">Chưa có phản hồi nào được ghi nhận.</div>
-  </div>
-
-  <!-- ADAPTIVE BIAS -->
-  <div class="card">
-    <div class="section-head" id="headBias" onclick="toggleSection('bodyBias','headBias')">
-      <span class="card-label" style="margin:0">⚙️ Adaptive Bias — Cơ chế tự điều chỉnh</span>
-      <span class="arrow">▼</span>
-    </div>
-    <div class="section-body" id="bodyBias">
-      <div class="bias-panel" style="margin-top:10px">
-        <div class="bias-row">
-          <span>Cơ chế 1 — Đảo ngược dự đoán<span class="bias-badge badge-on" id="b1badge">THƯỜNG TRỰC</span></span>
-          <span style="font-family:var(--mono);font-size:.7rem">SAI liên tiếp: <strong id="b1streak">0</strong>/3</span>
-        </div>
-        <div class="bias-row">
-          <span>Cơ chế 2 — Dịch ngưỡng cut-off<span class="bias-badge" id="b2badge">OFF</span></span>
-          <span style="font-family:var(--mono);font-size:.7rem">Cut-off: <strong id="b2cutoff">10.5</strong></span>
-        </div>
-        <div class="bias-row">
-          <span>Cơ chế 3 — Offset tổng điểm<span class="bias-badge" id="b3badge">OFF</span></span>
-          <span style="font-family:var(--mono);font-size:.7rem">Offset: <strong id="b3offset">+0</strong></span>
-        </div>
-        <div class="bias-row">
-          <span style="color:var(--text-dim)">SAI liên tiếp hiện tại</span>
-          <span id="consecutiveFail" style="font-family:var(--mono);color:var(--err);font-weight:700">0</span>
-        </div>
-        <div style="margin-top:10px">
-          <button class="btn btn-pause" onclick="resetBias()" style="width:100%;font-size:.75rem">🔄 Reset Bias về mặc định</button>
-        </div>
+      <div class="brow">
+        <span style="color:var(--dim)">Trạng thái Invert (Cơ chế 1)</span>
+        <span id="b1inv" style="font-family:var(--mono);font-size:.68rem;color:var(--txt)">Bình thường</span>
+      </div>
+      <div style="margin-top:10px">
+        <button class="btn bp" onclick="resetBias()" style="width:100%;font-size:.73rem">🔄 Reset tất cả Bias về mặc định</button>
       </div>
     </div>
   </div>
+</div>
 
-  <!-- STATS -->
-  <div class="card">
-    <div class="card-label">📈 Thống kê tích lũy</div>
-    <div class="stats-grid">
-      <div class="stat-box"><div class="stat-val" id="statTotal">0</div><div class="stat-lbl">Tổng lượt</div></div>
-      <div class="stat-box"><div class="stat-val" id="statOk" style="color:var(--ok)">0</div><div class="stat-lbl">Đúng</div></div>
-      <div class="stat-box"><div class="stat-val" id="statFail" style="color:var(--err)">0</div><div class="stat-lbl">Sai</div></div>
-      <div class="stat-box"><div class="stat-val" id="statAcc">—</div><div class="stat-lbl">Chính xác</div></div>
-    </div>
+<!-- STATS -->
+<div class="card">
+  <div class="clabel">📈 Thống kê tích lũy</div>
+  <div class="sgrid">
+    <div class="sbox"><div class="sval" id="stTotal">0</div><div class="slbl">Tổng lượt</div></div>
+    <div class="sbox"><div class="sval" id="stOk" style="color:var(--ok)">0</div><div class="slbl">Đúng</div></div>
+    <div class="sbox"><div class="sval" id="stFail" style="color:var(--err)">0</div><div class="slbl">Sai</div></div>
+    <div class="sbox"><div class="sval" id="stAcc">—</div><div class="slbl">Chính xác</div></div>
   </div>
+</div>
 
-  <!-- LOG TABLE -->
-  <div class="card">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-      <div class="card-label" style="margin:0">📋 Lịch sử Log (<span id="logCount">0</span> lượt)</div>
-      <button class="btn btn-csv" onclick="exportCSV()" style="flex:none;min-width:auto;padding:7px 14px">⬇ Tải CSV</button>
-    </div>
-    <div class="log-wrap">
-      <table class="log-table">
-        <thead>
-          <tr>
-            <th>#</th><th>Thời gian</th><th>°C</th>
-            <th>MD5 (8 ký tự đầu)</th><th>🎲</th><th>Σ</th>
-            <th>Dự đoán</th><th>Tin cậy</th><th>Đánh giá</th>
-          </tr>
-        </thead>
-        <tbody id="logBody">
-          <tr><td colspan="9" class="log-empty">Hệ thống đang khởi động...</td></tr>
-        </tbody>
-      </table>
-    </div>
+<!-- LOG -->
+<div class="card">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+    <div class="clabel" style="margin:0">📋 Lịch sử (<span id="logCnt">0</span> lượt)</div>
+    <button class="btn bcsv" onclick="exportCSV()" style="flex:none;min-width:auto;padding:6px 13px">⬇ Tải CSV</button>
   </div>
+  <div class="lwrap">
+    <table class="ltbl">
+      <thead>
+        <tr>
+          <th>#</th><th>Ngày giờ</th><th>°C</th>
+          <th>MD5 prefix</th><th>🎲</th><th>Σ</th><th>Adj</th>
+          <th>Dự đoán</th><th>Tin cậy</th><th>Đánh giá</th>
+        </tr>
+      </thead>
+      <tbody id="logBody"><tr><td colspan="10" class="lempty">Đang khởi động...</td></tr></tbody>
+    </table>
+  </div>
+</div>
 
 </div><!-- .app -->
 <div class="toast" id="toast"></div>
 
 <script>
-// ================================================================
+// ════════════════════════════════════════════════════════════════════
+// CONSTANTS
+// ════════════════════════════════════════════════════════════════════
+const MAX_LOG     = 5000;   // hard cap — prevent localStorage overflow
+const LOG_EVERY   = 3000;   // ms between auto-log entries
+const RAF_THROTTLE = 60;    // ms between prediction updates
+
+// ════════════════════════════════════════════════════════════════════
 // STATE
-// ================================================================
+// ════════════════════════════════════════════════════════════════════
 const S = {
   lat: null, lon: null, temp: 30,
   paused: false,
   startTime: Date.now(),
-  currentMD5: '',
-  currentPred: null,    // latest live prediction object
-  lockedPred: null,     // snapshot locked for feedback (deep copy)
-  manualMD5Mode: false,
+  currentPred: null,   // latest live prediction (changes every RAF cycle)
+  lockedPred:  null,   // deep-copy locked for feedback; nulled after feedback
+  manualMode:  false,
 
   bias: {
-    consecutiveFail: 0,
-    mechanism: 1,        // 1, 2, or 3
-    invert: false,       // mech-1: flip XOÀI↔TÁO
-    cutoff: 10.5,        // mech-2: adjustable threshold
-    offset: 0,           // mech-3: additive to raw sum
-    mech1InvertCount: 0, // how many times mech-1 has inverted
+    mechanism: 1,          // active top-level mechanism: 1 | 2 | 3
+    // Mech-1
+    invert: false,         // whether prediction is currently flipped
+    m1streak: 0,           // consecutive SAI in mech-1 (max 3 to trigger)
+    m1invertCycles: 0,     // how many full 3×SAI invert cycles done in mech-1
+    // Mech-2
+    cutoff: 10.5,          // mutable threshold (default 10.5)
+    m2streak: 0,           // consecutive SAI in mech-2 (max 3 to escalate)
+    // Mech-3
+    offset: 0,             // additive offset to raw sum before classification
+    // shared
+    consecutiveFail: 0,    // cross-mechanism running counter (display only)
   },
 
-  log: [],
-  stats: { total:0, ok:0, fail:0 },
+  log:   [],
+  stats: { total: 0, ok: 0, fail: 0 },
+  lastFeedbackId: null,  // FIX D+E: tracks which prediction was last evaluated
 };
 
-// ================================================================
-// PERSISTENCE  (localStorage + CSV)
-// ================================================================
+// ════════════════════════════════════════════════════════════════════
+// PERSISTENCE
+// ════════════════════════════════════════════════════════════════════
 function save(){
   try{
-    localStorage.setItem('xxs_log',   JSON.stringify(S.log));
-    localStorage.setItem('xxs_stats', JSON.stringify(S.stats));
-    localStorage.setItem('xxs_bias',  JSON.stringify(S.bias));
-  }catch(_){}
+    localStorage.setItem('xxs3_log',   JSON.stringify(S.log));
+    localStorage.setItem('xxs3_stats', JSON.stringify(S.stats));
+    localStorage.setItem('xxs3_bias',  JSON.stringify(S.bias));
+  }catch(e){
+    // FIX F: quota exceeded — trim oldest 20% and retry once
+    if(e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED'){
+      const trim = Math.floor(S.log.length * 0.2);
+      S.log.splice(0, trim);
+      try{ localStorage.setItem('xxs3_log', JSON.stringify(S.log)); }catch(_){}
+    }
+  }
 }
 function load(){
   try{
-    const l = localStorage.getItem('xxs_log');
-    const st= localStorage.getItem('xxs_stats');
-    const b = localStorage.getItem('xxs_bias');
+    const l  = localStorage.getItem('xxs3_log');
+    const st = localStorage.getItem('xxs3_stats');
+    const b  = localStorage.getItem('xxs3_bias');
     if(l)  S.log   = JSON.parse(l);
     if(st) S.stats = JSON.parse(st);
     if(b)  S.bias  = Object.assign({}, S.bias, JSON.parse(b));
   }catch(_){}
 }
 
-// ================================================================
-// DICE EXTRACTION  — unbiased modulo via 4-byte pool per die
-// ================================================================
-// FIX #1: Use 4 consecutive hex chars (2 bytes = 0-65535) per die.
-// 65535 % 6 leaves remainder only 3 values (0-2) with freq 10923
-// vs 3-5 with freq 10922 → bias < 0.01% — acceptable.
+// ════════════════════════════════════════════════════════════════════
+// DICE EXTRACTION — 2-byte pool per die, <0.002% bias
+// Offsets: 0, 10, 20 → windows [0-3],[10-13],[20-23] — no overlap in 32-char MD5
+// ════════════════════════════════════════════════════════════════════
 function extractDice(md5){
-  function twoBytes(hexStr, offset){
-    return parseInt(hexStr.slice(offset, offset+4), 16); // 0-65535
-  }
-  const d1 = (twoBytes(md5,  0) % 6) + 1;
-  const d2 = (twoBytes(md5, 10) % 6) + 1;
-  const d3 = (twoBytes(md5, 20) % 6) + 1;
-  return { d1, d2, d3 };
+  const w = (off) => parseInt(md5.slice(off, off+4), 16); // 0-65535
+  return {
+    d1: (w(0)  % 6) + 1,
+    d2: (w(10) % 6) + 1,
+    d3: (w(20) % 6) + 1,
+  };
 }
 
-// ================================================================
+// ════════════════════════════════════════════════════════════════════
 // PREDICTION LOGIC
-// ================================================================
+// FIX B: confidence uses adj (post-offset) distance, not raw
+// FIX N: store pre-invert classification separately for mech-2/3 use
+// ════════════════════════════════════════════════════════════════════
 function calcPred(d1, d2, d3){
   const B   = S.bias;
-  const raw = d1 + d2 + d3;                        // 3-18 no offset
-  const adj = Math.max(3, Math.min(18, raw + B.offset)); // clamped
+  const raw = d1 + d2 + d3;                              // 3-18
+  // FIX M (critical): offset direction was inverted — now correctly fixed
+  // adj is used ONLY for classification; raw is always stored for display
+  const adj = Math.max(3, Math.min(18, raw + B.offset));  // clamped 3-18
 
-  let pred = adj <= B.cutoff ? 'XOÀI' : 'TÁO';
-  if(B.invert) pred = pred === 'XOÀI' ? 'TÁO' : 'XOÀI';
+  // Pre-invert classification (used internally by mech-2/3 to know the "base" outcome)
+  const preInvertPred = adj <= B.cutoff ? 'XOÀI' : 'TÁO';
 
-  // Confidence: how far raw is from exact centre (10.5)
-  const dist = Math.abs(raw - 10.5);               // 0..7.5
-  const conf = Math.round(50 + (dist / 7.5) * 45); // 50..95 %
+  // Apply mech-1 invert
+  const finalPred = (B.invert && B.mechanism >= 1)
+    ? (preInvertPred === 'XOÀI' ? 'TÁO' : 'XOÀI')
+    : preInvertPred;
 
-  return { pred, raw, adj, conf };
+  // FIX B: confidence from adj distance (post-offset, pre-invert) — matches actual decision boundary
+  const dist = Math.abs(adj - B.cutoff);  // 0..max depends on cutoff
+  const maxDist = Math.max(B.cutoff - 3, 18 - B.cutoff); // normalise to current cutoff
+  const conf = Math.round(50 + Math.min(dist / Math.max(maxDist, 1), 1) * 45); // 50-95%
+
+  // Whether the prediction was bias-modified
+  const biasModified = B.invert || B.offset !== 0;
+
+  return { pred: finalPred, preInvertPred, raw, adj, conf, biasModified };
 }
 
-// ================================================================
-// SEED  &  HASH
-// ================================================================
+// ════════════════════════════════════════════════════════════════════
+// SEED & HASH
+// ════════════════════════════════════════════════════════════════════
 function buildSeed(ts, temp, lat, lon){
-  const la = lat  !== null ? lat.toFixed(6)  : 'null';
-  const lo = lon  !== null ? lon.toFixed(6)  : 'null';
+  const la = lat !== null ? lat.toFixed(6) : 'null';
+  const lo = lon !== null ? lon.toFixed(6) : 'null';
   return `${ts}|${parseFloat(temp).toFixed(2)}|${la},${lo}`;
 }
-function md5Of(seed){ return CryptoJS.MD5(seed).toString(); }
+function md5Of(s){ return CryptoJS.MD5(s).toString(); }
 
-// ================================================================
-// UI — prediction display
-// ================================================================
-function renderPred(d1,d2,d3,pred,raw,conf,md5){
-  const cls = pred==='XOÀI' ? 'xoai' : 'tao';
+// ════════════════════════════════════════════════════════════════════
+// UI RENDERS
+// ════════════════════════════════════════════════════════════════════
+function renderPred(p){
+  const cls = p.pred === 'XOÀI' ? 'xoai' : 'tao';
   const hero = document.getElementById('predHero');
-  hero.className = 'pred-hero ' + cls;
-  document.getElementById('predResult').textContent = pred;
-  document.getElementById('d1').textContent = d1;
-  document.getElementById('d2').textContent = d2;
-  document.getElementById('d3').textContent = d3;
-  document.getElementById('diceSum').textContent   = raw;
-  document.getElementById('confidence').textContent= conf + '%';
-  document.getElementById('confFill').style.width  = conf + '%';
-  document.getElementById('biasActive').textContent= S.bias.mechanism;
-  document.getElementById('md5Live').textContent   = md5;
+  hero.className = 'hero ' + cls;
+  document.getElementById('predResult').childNodes[0].textContent = p.pred;
+  // FIX I: show BIAS tag when prediction was bias-modified
+  document.getElementById('biasModTag').classList.toggle('show', p.biasModified);
+  document.getElementById('d1').textContent = p.d1;
+  document.getElementById('d2').textContent = p.d2;
+  document.getElementById('d3').textContent = p.d3;
+  document.getElementById('diceSum').textContent  = p.raw;
+  document.getElementById('diceAdj').textContent  = p.adj === p.raw ? p.adj : `${p.adj}(${p.offset>=0?'+':''}${S.bias.offset})`;
+  document.getElementById('confidence').textContent = p.conf + '%';
+  document.getElementById('cfill').style.width     = p.conf + '%';
+  document.getElementById('biasActive').textContent = S.bias.mechanism;
+  document.getElementById('md5Live').textContent    = p.md5;
+  document.getElementById('seedInfo').innerHTML =
+    `Seed: <strong>${p.seed.slice(0,72)}${p.seed.length>72?'…':''}</strong>`;
 }
 
 function renderBias(){
   const B = S.bias;
-  document.getElementById('b1streak').textContent      = B.consecutiveFail;
-  document.getElementById('consecutiveFail').textContent= B.consecutiveFail;
-  document.getElementById('b2cutoff').textContent      = B.cutoff.toFixed(1);
-  document.getElementById('b3offset').textContent      = (B.offset >= 0 ? '+' : '') + B.offset;
-  document.getElementById('biasActive').textContent    = B.mechanism;
-
   const m = B.mechanism;
+
+  // FIX C: each mechanism has its own streak display
+  document.getElementById('b1s').textContent  = m === 1 ? B.m1streak  : '—';
+  document.getElementById('b2s').textContent  = m === 2 ? B.m2streak  : '—';
+  document.getElementById('b2co').textContent = B.cutoff.toFixed(1);
+  document.getElementById('b3of').textContent = (B.offset >= 0 ? '+' : '') + B.offset;
+  document.getElementById('b1inv').textContent = B.invert ? '↕ ĐANG ĐẢO NGƯỢC' : 'Bình thường';
+  document.getElementById('biasActive').textContent = m;
+
   const b1 = document.getElementById('b1badge');
-  b1.className = 'bias-badge badge-on';
-  b1.textContent= B.invert ? '↕ ĐANG ĐẢO' : 'THƯỜNG TRỰC';
+  b1.className = 'bbadge ' + (B.invert ? 'bwarn' : 'bon');
+  b1.textContent = B.invert ? '↕ ĐẢO' : 'THƯỜNG TRỰC';
 
   const b2 = document.getElementById('b2badge');
-  b2.className = 'bias-badge ' + (m >= 2 ? 'badge-on' : 'badge-off');
-  b2.textContent= m >= 2 ? 'ON' : 'OFF';
+  b2.className = 'bbadge ' + (m >= 2 ? 'bon' : 'boff');
+  b2.textContent = m >= 2 ? 'ON' : 'OFF';
 
   const b3 = document.getElementById('b3badge');
-  b3.className = 'bias-badge ' + (m >= 3 ? 'badge-on' : 'badge-off');
-  b3.textContent= m >= 3 ? 'ON' : 'OFF';
+  b3.className = 'bbadge ' + (m >= 3 ? 'bon' : 'boff');
+  b3.textContent = m >= 3 ? 'ON' : 'OFF';
 }
 
 function renderStats(){
   const s = S.stats;
-  document.getElementById('statTotal').textContent = s.total;
-  document.getElementById('statOk').textContent    = s.ok;
-  document.getElementById('statFail').textContent  = s.fail;
-  document.getElementById('statAcc').textContent   =
-    s.total > 0 ? Math.round(s.ok / s.total * 100) + '%' : '—';
-  document.getElementById('logCount').textContent  = S.log.length;
+  document.getElementById('stTotal').textContent = s.total;
+  document.getElementById('stOk').textContent    = s.ok;
+  document.getElementById('stFail').textContent  = s.fail;
+  document.getElementById('stAcc').textContent   = s.total > 0
+    ? Math.round(s.ok / s.total * 100) + '%' : '—';
+  document.getElementById('logCnt').textContent  = S.log.length;
 }
 
+// FIX H: full datetime in log
 function renderLog(){
-  const tbody = document.getElementById('logBody');
+  const tb = document.getElementById('logBody');
   if(!S.log.length){
-    tbody.innerHTML = '<tr><td colspan="9" class="log-empty">Chưa có dữ liệu.</td></tr>';
+    tb.innerHTML = '<tr><td colspan="10" class="lempty">Chưa có dữ liệu.</td></tr>';
     return;
   }
   const show = S.log.slice().reverse().slice(0, 300);
   let html = '';
   show.forEach((e, i) => {
-    const n   = S.log.length - i;
-    const pc  = e.pred==='XOÀI' ? 'tag-xoai' : 'tag-tao';
-    const ev  = e.eval === null
-      ? '<span class="tag-none">—</span>'
-      : e.eval
-        ? '<span class="tag-ok">✅</span>'
-        : '<span class="tag-err">❌</span>';
+    const n  = S.log.length - i;
+    const pc = e.pred === 'XOÀI' ? 'tx' : 'tt';
+    const ev = e.eval === null
+      ? '<span class="tmu">—</span>'
+      : e.eval ? '<span class="tok">✅</span>' : '<span class="terr">❌</span>';
+    const adjStr = e.adj !== e.raw ? `${e.adj}` : e.raw;
     html += `<tr>
       <td>${n}</td>
-      <td>${e.time}</td>
+      <td style="font-family:var(--mono)">${e.datetime}</td>
       <td>${parseFloat(e.temp).toFixed(1)}°</td>
       <td style="font-family:var(--mono)">${e.md5.slice(0,8)}…</td>
       <td>${e.d1}·${e.d2}·${e.d3}</td>
       <td>${e.raw}</td>
+      <td>${adjStr}</td>
       <td class="${pc}">${e.pred}</td>
       <td>${e.conf}%</td>
       <td>${ev}</td>
     </tr>`;
   });
-  tbody.innerHTML = html;
-  document.getElementById('logCount').textContent = S.log.length;
+  tb.innerHTML = html;
+  document.getElementById('logCnt').textContent = S.log.length;
 }
 
-function renderLockedPred(){
-  const el = document.getElementById('lockedPredDisplay');
+function renderLocked(){
+  const el  = document.getElementById('lockDisplay');
+  const ok  = document.getElementById('btnOk');
+  const err = document.getElementById('btnErr');
   if(!S.lockedPred){
-    el.textContent = 'Chưa có (bấm Tạm dừng hoặc dán MD5 để khóa)';
-    el.style.color = 'var(--text-dim)';
+    el.innerHTML = '<span style="color:var(--dim)">Chưa có — bấm ⏸ Tạm dừng hoặc dán MD5 để khóa dự đoán</span>';
+    ok.disabled = true; err.disabled = true;
     return;
   }
-  const lp = S.lockedPred;
+  const lp  = S.lockedPred;
   const col = lp.pred === 'XOÀI' ? 'var(--xoai)' : 'var(--tao)';
-  el.innerHTML = `<span style="color:${col};font-weight:700">${lp.pred}</span> · Σ=${lp.raw} · 🎲${lp.d1}·${lp.d2}·${lp.d3} · ${lp.conf}% · <span style="font-family:var(--mono);font-size:.68rem">${lp.md5.slice(0,12)}…</span>`;
+  const bmod = lp.biasModified ? ' <span style="color:var(--warn);font-size:.65rem">[BIAS đã điều chỉnh]</span>' : '';
+  el.innerHTML = `Dự đoán khóa: <span style="color:${col};font-weight:700;font-size:.9rem">${lp.pred}</span>${bmod}
+    · Σ=${lp.raw}→Adj=${lp.adj} · 🎲${lp.d1}·${lp.d2}·${lp.d3} · ${lp.conf}%
+    <br><span style="font-family:var(--mono);font-size:.62rem;color:var(--dim)">${lp.md5}</span>`;
+  ok.disabled = false; err.disabled = false;
 }
 
-// ================================================================
-// REAL-TIME LOOP — requestAnimationFrame
-// FIX #4: maybeLog() guards against paused state
-// ================================================================
-let rafLast = 0;
+// ════════════════════════════════════════════════════════════════════
+// REAL-TIME LOOP
+// FIX K: skip if tab hidden
+// FIX F: cap log at MAX_LOG entries (FIFO trim)
+// ════════════════════════════════════════════════════════════════════
+let rafLast  = 0;
 let logTimer = 0;
 
 function tick(ts){
   requestAnimationFrame(tick);
 
-  // Clock always ticks (FIX: pause only stops Seed updates)
-  const elapsed = Date.now() - S.startTime;
-  const hh = Math.floor(elapsed / 3600000);
-  const mm = Math.floor((elapsed % 3600000) / 60000);
-  const ss = Math.floor((elapsed % 60000) / 1000);
-  const ms = elapsed % 1000;
-  document.getElementById('clockDisplay').textContent =
-    pad(hh) + ':' + pad(mm) + ':' + pad(ss) + '.' + padMs(ms);
+  // Clock always runs regardless of pause
+  const el = Date.now() - S.startTime;
+  document.getElementById('clockDisp').textContent =
+    pad(Math.floor(el/3600000)) + ':' +
+    pad(Math.floor((el%3600000)/60000)) + ':' +
+    pad(Math.floor((el%60000)/1000)) + '.' +
+    pad3(el%1000);
 
-  if(S.paused)        return;
-  if(S.manualMD5Mode) return;
-  if(ts - rafLast < 60) return; // ~16fps for readability
+  // FIX K: skip heavy work when tab not visible
+  if(document.hidden)       return;
+  if(S.paused)              return;
+  if(S.manualMode)          return;
+  if(ts - rafLast < RAF_THROTTLE) return;
   rafLast = ts;
 
   const now  = Date.now();
   const seed = buildSeed(now, S.temp, S.lat, S.lon);
   const hash = md5Of(seed);
-  S.currentMD5 = hash;
+  const {d1,d2,d3} = extractDice(hash);
+  const p = calcPred(d1,d2,d3);
 
-  const {d1,d2,d3}   = extractDice(hash);
-  const {pred,raw,adj,conf} = calcPred(d1,d2,d3);
-
-  S.currentPred = { d1,d2,d3, pred, raw, adj, conf, md5:hash,
+  S.currentPred = { ...p, d1,d2,d3, md5:hash, seed,
     temp:S.temp, lat:S.lat, lon:S.lon,
-    time: fmtTime(new Date(now)) };
+    datetime: fmtDatetime(new Date(now)) };
 
-  renderPred(d1,d2,d3,pred,raw,conf,hash);
-  document.getElementById('seedInfo').innerHTML =
-    `Seed: <strong>${seed.slice(0,70)}${seed.length>70?'…':''}</strong>`;
+  renderPred(S.currentPred);
 
-  // FIX #4: auto-log only when NOT paused
-  if(!S.paused && !S.manualMD5Mode){
-    const nowMs = Date.now();
-    if(nowMs - logTimer >= 2000){
-      logTimer = nowMs;
-      const last = S.log[S.log.length - 1];
-      if(!last || last.md5 !== hash){
-        S.log.push({...S.currentPred, eval: null});
-        renderLog();
-        save();
-      }
+  // Auto-log throttled, FIFO-capped
+  if(Date.now() - logTimer >= LOG_EVERY){
+    logTimer = Date.now();
+    const last = S.log[S.log.length-1];
+    if(!last || last.md5 !== hash){
+      // FIX F: trim oldest if over cap
+      if(S.log.length >= MAX_LOG) S.log.splice(0, Math.floor(MAX_LOG*0.1));
+      S.log.push({...S.currentPred, eval:null});
+      renderLog();
+      save();
     }
   }
 }
 requestAnimationFrame(tick);
 
-// ================================================================
+// ════════════════════════════════════════════════════════════════════
 // PAUSE / RESUME
-// FIX #3: deep copy for lockedPred via spread
-// ================================================================
+// ════════════════════════════════════════════════════════════════════
 function togglePause(){
   S.paused = !S.paused;
-  const btn   = document.getElementById('btnPause');
-  const badge = document.getElementById('pausedBadge');
+  const btn = document.getElementById('btnPause');
+  document.getElementById('pbadge').classList.toggle('show', S.paused);
   if(S.paused){
     btn.textContent = '▶ Tiếp tục';
-    badge.classList.add('show');
-    // Deep-copy current prediction as the locked snapshot
     if(S.currentPred){
-      S.lockedPred = { ...S.currentPred };
-      renderLockedPred();
+      S.lockedPred = { ...S.currentPred };   // deep copy via spread (all fields are primitives)
+      S.lastFeedbackId = null;               // reset so this new lock can be evaluated
+      renderLocked();
     }
-    showToast('⏸ Đã tạm dừng — đồng hồ vẫn chạy');
+    showToast('⏸ Tạm dừng — đồng hồ tiếp tục chạy');
   } else {
     btn.textContent = '⏸ Tạm dừng';
-    badge.classList.remove('show');
-    showToast('▶ Đã tiếp tục');
+    showToast('▶ Tiếp tục');
   }
 }
 
-// ================================================================
-// MANUAL MD5 INPUT — analyze on input, instantly
-// ================================================================
-document.getElementById('md5ManualInput').addEventListener('input', onManualMD5Input);
+// ════════════════════════════════════════════════════════════════════
+// MANUAL MD5
+// ════════════════════════════════════════════════════════════════════
+document.getElementById('md5Input').addEventListener('input', onMD5Input);
 
-function onManualMD5Input(){
-  const raw = document.getElementById('md5ManualInput').value.trim().toLowerCase();
-  const res = document.getElementById('manualResult');
+function onMD5Input(){
+  const val = document.getElementById('md5Input').value.trim().toLowerCase();
+  const res = document.getElementById('manualRes');
+  if(!val){ clearManual(); return; }
 
-  if(!raw){ clearManualMD5(); return; }
-
-  if(!/^[0-9a-f]{32}$/.test(raw)){
+  if(!/^[0-9a-f]{32}$/.test(val)){
     res.style.display = 'block';
     res.style.color   = 'var(--err)';
-    res.textContent   = '⚠ Cần đúng 32 ký tự hex (0-9, a-f). Hiện tại: ' + raw.length + ' ký tự.';
-    S.manualMD5Mode = false;
+    res.textContent   = '⚠ Cần đúng 32 ký tự hex. Hiện tại: ' + val.length + ' ký tự.';
+    S.manualMode = false;
     return;
   }
 
-  // Valid — analyze immediately
-  S.manualMD5Mode = true;
-  const {d1,d2,d3}         = extractDice(raw);
-  const {pred,raw:rSum,adj,conf} = calcPred(d1,d2,d3);
+  S.manualMode = true;
+  const {d1,d2,d3} = extractDice(val);
+  const p = calcPred(d1,d2,d3);
+  const dt = fmtDatetime(new Date());
+  const entry = { ...p, d1,d2,d3, md5:val, seed:'MANUAL:'+val,
+    temp:S.temp, lat:S.lat, lon:S.lon, datetime:dt, manual:true };
 
-  renderPred(d1,d2,d3,pred,rSum,conf,raw);
-  document.getElementById('seedInfo').innerHTML =
-    `Seed: <strong>MD5 THỦ CÔNG — ${raw}</strong>`;
+  S.currentPred = entry;
+  S.lockedPred  = { ...entry };
+  S.lastFeedbackId = null;
+  renderPred(S.currentPred);
+  renderLocked();
 
-  S.currentMD5  = raw;
-  S.currentPred = {d1,d2,d3,pred,raw:rSum,adj,conf,md5:raw,
-    temp:S.temp, lat:S.lat, lon:S.lon,
-    time:fmtTime(new Date()), manual:true};
-  S.lockedPred = {...S.currentPred};
-  renderLockedPred();
-
-  // Add to log (unevaluated)
+  // Add to log if new
   const last = S.log[S.log.length-1];
-  if(!last || last.md5 !== raw){
-    S.log.push({...S.currentPred, eval:null});
+  if(!last || last.md5 !== val){
+    if(S.log.length >= MAX_LOG) S.log.splice(0, Math.floor(MAX_LOG*0.1));
+    S.log.push({...entry, eval:null});
     renderLog(); save();
   }
 
-  const col = pred==='XOÀI' ? '#f5c518' : '#3ec6f5';
+  const col = p.pred === 'XOÀI' ? '#f5c518' : '#3ec6f5';
   res.style.display = 'block';
   res.style.color   = '';
-  res.innerHTML = `✅ MD5 hợp lệ → 🎲 ${d1}·${d2}·${d3} → Σ=${rSum} → <span style="color:${col};font-weight:700">${pred}</span> (${conf}% tin cậy)`;
+  res.innerHTML = `✅ → 🎲 ${d1}·${d2}·${d3} · Σ=${p.raw} Adj=${p.adj} → <span style="color:${col};font-weight:700">${p.pred}</span> ${p.conf}%${p.biasModified?' <span style="color:var(--warn)">[BIAS]</span>':''}`;
 }
 
-function clearManualMD5(){
-  document.getElementById('md5ManualInput').value = '';
-  document.getElementById('manualResult').style.display = 'none';
-  S.manualMD5Mode = false;
-  // FIX #5: clear locked pred set by manual mode, resume live
+function clearManual(){
+  document.getElementById('md5Input').value  = '';
+  document.getElementById('manualRes').style.display = 'none';
+  S.manualMode = false;
   if(S.lockedPred && S.lockedPred.manual){
     S.lockedPred = null;
-    renderLockedPred();
+    renderLocked();
   }
-  showToast('✕ Đã xóa MD5 thủ công — trở về live');
+  showToast('✕ Xóa MD5 thủ công — trở về live');
 }
 
-// ================================================================
+// ════════════════════════════════════════════════════════════════════
 // LOCATION & WEATHER
-// ================================================================
-function fetchLocation(){
+// ════════════════════════════════════════════════════════════════════
+function fetchLoc(){
   setWx('warn','Đang xin quyền vị trí...');
-  if(!navigator.geolocation){
-    setWx('err','Trình duyệt không hỗ trợ Geolocation. Dùng mặc định 30°C.');
-    return;
-  }
+  if(!navigator.geolocation){ setWx('err','Trình duyệt không hỗ trợ Geolocation.'); return; }
   navigator.geolocation.getCurrentPosition(
     pos => {
       S.lat = pos.coords.latitude;
       S.lon = pos.coords.longitude;
-      document.getElementById('inputLat').value = S.lat.toFixed(6);
-      document.getElementById('inputLon').value = S.lon.toFixed(6);
-      setWx('warn','Đã lấy tọa độ — đang lấy nhiệt độ...');
-      fetchWeather(S.lat, S.lon);
+      document.getElementById('iLat').value = S.lat.toFixed(6);
+      document.getElementById('iLon').value = S.lon.toFixed(6);
+      setWx('warn','Tọa độ OK — đang lấy nhiệt độ...');
+      fetchWx(S.lat, S.lon);
     },
-    () => {
-      setWx('err','Từ chối quyền vị trí. Dùng mặc định 30°C hoặc nhập thủ công.');
-      S.temp = 30;
-    },
+    () => { setWx('err','Từ chối vị trí. Dùng mặc định 30°C hoặc nhập thủ công.'); S.temp = 30; },
     { timeout:10000 }
   );
 }
 
-function fetchWeather(lat, lon){
+function fetchWx(lat, lon){
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
   fetch(url)
     .then(r => r.json())
-    .then(data => {
-      const t = data.current_weather.temperature;
+    .then(d => {
+      const t = d.current_weather.temperature;
       S.temp  = t;
-      document.getElementById('inputTemp').value = t;
-      setWx('ok', `🌡 ${t}°C · GPS: ${lat.toFixed(4)}, ${lon.toFixed(4)}`);
-      showToast(`✅ Nhiệt độ thực tế: ${t}°C`);
+      document.getElementById('iTemp').value = t;
+      setWx('ok', `🌡 ${t}°C · GPS ${lat.toFixed(4)}, ${lon.toFixed(4)}`);
+      showToast(`✅ Nhiệt độ: ${t}°C`);
     })
-    .catch(() => {
-      setWx('err','Không lấy được thời tiết. Dùng mặc định 30°C.');
-      S.temp = 30;
-    });
+    .catch(() => { setWx('err','Lỗi lấy nhiệt độ. Dùng mặc định 30°C.'); S.temp = 30; });
 }
 
 function setWx(type, msg){
-  document.getElementById('weatherDot').className = 'dot dot-' + type;
-  document.getElementById('weatherText').textContent = msg;
+  document.getElementById('wxDot').className = 'dot d' + type;
+  document.getElementById('wxTxt').textContent = msg;
 }
-
-function onGeoManual(){
-  const la = parseFloat(document.getElementById('inputLat').value);
-  const lo = parseFloat(document.getElementById('inputLon').value);
+function onGeoIn(){
+  const la = parseFloat(document.getElementById('iLat').value);
+  const lo = parseFloat(document.getElementById('iLon').value);
   if(!isNaN(la) && !isNaN(lo)){ S.lat = la; S.lon = lo; }
 }
-function onTempManual(){
-  const t = parseFloat(document.getElementById('inputTemp').value);
-  if(!isNaN(t)){
-    S.temp = t;
-    setWx('warn', '🌡 Nhiệt độ thủ công: ' + t + '°C');
-  }
+function onTempIn(){
+  const t = parseFloat(document.getElementById('iTemp').value);
+  if(!isNaN(t)){ S.temp = t; setWx('warn','🌡 Nhiệt độ thủ công: '+t+'°C'); }
 }
 
-// ================================================================
+// ════════════════════════════════════════════════════════════════════
 // FEEDBACK & ADAPTIVE BIAS
-// Mechanism progression (tuần tự theo SAI liên tiếp):
-//   Mech-1 (always): sau 3 SAI liên tiếp → đảo ngược pred.
-//                    Sau mỗi lần đảo ngược: nếu vẫn tiếp tục SAI 3 lần nữa
-//                    lần thứ 2 khi mech-1 đã đảo → nâng lên Mech-2.
-//   Mech-2: điều chỉnh cutoff ±0.5 mỗi SAI; sau 3 SAI liên tiếp → nâng lên Mech-3.
-//   Mech-3: offset điểm ±1 mỗi SAI.
-// ================================================================
+//
+// Three-mechanism tuần tự cascade:
+//   Mech-1 always active: đảo ngược dự đoán sau 3 SAI liên tiếp.
+//          Sau 2 chu kỳ đảo (tổng 6 SAI) → nâng lên Mech-2.
+//   Mech-2: dịch cutoff ±0.5 mỗi SAI dựa trên preInvertPred (FIX N).
+//          Sau 3 SAI liên tiếp trong Mech-2 → nâng lên Mech-3.
+//   Mech-3: offset ±1 mỗi SAI — hướng ĐÚNG (FIX M).
+//          Không tự escalate thêm; tích lũy vô thời hạn.
+//
+// FIX D+E: lockedPred nulled after feedback; lastFeedbackId prevents double-count.
+// FIX N:   Mech-2 uses preInvertPred (not post-invert) for cutoff direction.
+// FIX M:   Mech-3 offset direction corrected.
+// ════════════════════════════════════════════════════════════════════
 function feedback(correct){
-  if(!S.lockedPred && !S.currentPred){
-    showToast('⚠ Chưa có dự đoán nào để đánh giá!'); return;
-  }
-  const snap = S.lockedPred ? S.lockedPred : { ...S.currentPred };
+  if(!S.lockedPred){ showToast('⚠ Chưa có dự đoán đã khóa!'); return; }
 
-  // --- Stats ---
+  // FIX D: prevent double-feedback on same snapshot
+  const snapId = S.lockedPred.md5 + '|' + S.lockedPred.datetime;
+  if(snapId === S.lastFeedbackId){
+    showToast('⚠ Dự đoán này đã được đánh giá rồi!'); return;
+  }
+  S.lastFeedbackId = snapId;
+
+  const snap = S.lockedPred;
+
+  // Stats
   S.stats.total++;
   if(correct) S.stats.ok++;
   else        S.stats.fail++;
 
-  // --- Fill eval in existing log entry, or add new ---
+  // Fill eval in log (find matching unevaluated entry)
   let filled = false;
-  for(let i = S.log.length - 1; i >= 0; i--){
+  for(let i = S.log.length-1; i >= 0; i--){
     if(S.log[i].eval === null && S.log[i].md5 === snap.md5){
       S.log[i].eval = correct; filled = true; break;
     }
   }
-  if(!filled){
-    S.log.push({ ...snap, eval: correct });
-  }
+  if(!filled) S.log.push({...snap, eval:correct});
 
-  // --- Adaptive Bias ---
+  // FIX E: clear lockedPred after successful feedback
+  S.lockedPred = null;
+  renderLocked();
+
+  // ── Adaptive Bias ──
   const B = S.bias;
   if(correct){
+    // Reset the active mechanism's streak only
+    if(B.mechanism === 1) B.m1streak = 0;
+    else if(B.mechanism === 2) B.m2streak = 0;
     B.consecutiveFail = 0;
-    showToast('✅ Ghi nhận ĐÚNG — bias không đổi');
+    showToast('✅ ĐÚNG — bias giữ nguyên');
   } else {
     B.consecutiveFail++;
 
     if(B.mechanism === 1){
-      if(B.consecutiveFail >= 3){
-        B.consecutiveFail = 0;
+      B.m1streak++;
+      if(B.m1streak >= 3){
+        B.m1streak = 0;
         B.invert = !B.invert;
-        B.mech1InvertCount++;
-        if(B.mech1InvertCount >= 2){
-          // After 2 full invert cycles (2×3 SAI) → escalate
+        B.m1invertCycles++;
+        if(B.m1invertCycles >= 2){
+          // 2 full 3-SAI invert cycles → escalate to mech-2
           B.mechanism = 2;
-          B.mech1InvertCount = 0;
-          showToast('⚙ Kích hoạt Cơ chế 2: dịch ngưỡng phân loại');
+          B.m1invertCycles = 0;
+          showToast('⚙ Kích hoạt Cơ chế 2: dịch ngưỡng cut-off');
         } else {
-          showToast('⚙ Cơ chế 1: Đảo ngược dự đoán (' + (B.invert?'ĐANG ĐẢO':'Bình thường') + ')');
+          showToast('⚙ Cơ chế 1: Đảo ngược → ' + (B.invert?'ĐANG ĐẢO':'Bình thường'));
         }
       } else {
-        showToast('❌ SAI ' + B.consecutiveFail + '/3 (Cơ chế 1)');
+        showToast('❌ SAI '+B.m1streak+'/3 (Cơ chế 1)');
       }
     }
     else if(B.mechanism === 2){
-      if(snap.pred === 'XOÀI'){
-        B.cutoff = Math.max(6.5, +(B.cutoff - 0.5).toFixed(1));
+      B.m2streak++;
+      // FIX N: use preInvertPred (pre-mech1-invert) for cutoff direction
+      const baseClass = snap.preInvertPred;
+      if(baseClass === 'XOÀI'){
+        // XOÀI was wrong → shrink XOÀI zone → lower cutoff
+        B.cutoff = Math.max(6.0, +(B.cutoff - 0.5).toFixed(1));
       } else {
-        B.cutoff = Math.min(14.5, +(B.cutoff + 0.5).toFixed(1));
+        // TÁO was wrong → shrink TÁO zone → raise cutoff
+        B.cutoff = Math.min(15.0, +(B.cutoff + 0.5).toFixed(1));
       }
-      if(B.consecutiveFail >= 3){
+      if(B.m2streak >= 3){
         B.mechanism = 3;
-        B.consecutiveFail = 0;
+        B.m2streak  = 0;
         showToast('⚙ Kích hoạt Cơ chế 3: offset tổng điểm');
       } else {
-        showToast('⚙ Cơ chế 2: cut-off → ' + B.cutoff);
+        showToast('⚙ Cơ chế 2: cut-off → '+B.cutoff+' ('+B.m2streak+'/3)');
       }
     }
     else if(B.mechanism === 3){
-      if(snap.pred === 'XOÀI'){
-        B.offset = Math.max(-4, B.offset - 1);
+      // FIX M: offset direction CORRECTED
+      // preInvertPred = classification before invert & post-offset
+      // If preInvertPred=XOÀI was wrong → actual=TÁO → want adj > cutoff → increase offset
+      // If preInvertPred=TÁO was wrong  → actual=XOÀI → want adj < cutoff → decrease offset
+      const baseClass = snap.preInvertPred;
+      if(baseClass === 'XOÀI'){
+        B.offset = Math.min(5, B.offset + 1);  // push adj higher → becomes TÁO
       } else {
-        B.offset = Math.min(4, B.offset + 1);
+        B.offset = Math.max(-5, B.offset - 1); // push adj lower  → becomes XOÀI
       }
-      showToast('⚙ Cơ chế 3: offset → ' + (B.offset>=0?'+':'') + B.offset);
+      showToast('⚙ Cơ chế 3: offset → '+(B.offset>=0?'+':'')+B.offset);
     }
   }
 
@@ -797,99 +845,110 @@ function feedback(correct){
   renderStats();
   save();
 
-  document.getElementById('feedbackHint').textContent =
-    `Phản hồi #${S.stats.total}: ${correct?'✅ ĐÚNG':'❌ SAI'} · Accuracy tích lũy: ${Math.round(S.stats.ok/S.stats.total*100)}%`;
+  document.getElementById('fbHint').textContent =
+    `#${S.stats.total}: ${correct?'✅ ĐÚNG':'❌ SAI'} · Accuracy: ${Math.round(S.stats.ok/S.stats.total*100)}% · Cơ chế hiện tại: ${S.bias.mechanism}`;
 }
 
-// ================================================================
+// ════════════════════════════════════════════════════════════════════
 // RESET BIAS
-// ================================================================
+// ════════════════════════════════════════════════════════════════════
 function resetBias(){
-  S.bias = { consecutiveFail:0, mechanism:1, invert:false,
-             cutoff:10.5, offset:0, mech1InvertCount:0 };
+  S.bias = {
+    mechanism:1, invert:false,
+    m1streak:0, m1invertCycles:0,
+    cutoff:10.5,
+    m2streak:0,
+    offset:0,
+    consecutiveFail:0,
+  };
   renderBias();
   save();
-  showToast('🔄 Đã reset Adaptive Bias về mặc định');
+  showToast('🔄 Reset toàn bộ Bias về mặc định');
 }
 
-// ================================================================
-// CSV EXPORT
-// ================================================================
+// ════════════════════════════════════════════════════════════════════
+// CSV EXPORT — FIX G: properly quote fields; FIX H: full datetime
+// ════════════════════════════════════════════════════════════════════
+function csvQ(v){
+  const s = String(v);
+  return (s.includes(',') || s.includes('"') || s.includes('\n'))
+    ? '"' + s.replace(/"/g,'""') + '"'
+    : s;
+}
 function exportCSV(){
   if(!S.log.length){ showToast('⚠ Chưa có dữ liệu!'); return; }
-  const hdr = ['#','Thời gian','Nhiệt độ(°C)','Vĩ độ','Kinh độ',
-                'MD5 full','Xúc xắc','Tổng thô','Dự đoán','Tin cậy(%)','Đánh giá'];
+  const hdr = ['#','Ngày giờ','Nhiệt độ(°C)','Vĩ độ','Kinh độ',
+    'MD5 đầy đủ','Xúc xắc','Tổng thô','Adj','Dự đoán','Tin cậy(%)','Đánh giá'];
   const rows = S.log.map((e,i) => [
-    i+1, e.time, parseFloat(e.temp).toFixed(1),
-    e.lat !== null ? e.lat : 'N/A',
-    e.lon !== null ? e.lon : 'N/A',
+    i+1, e.datetime, parseFloat(e.temp).toFixed(1),
+    e.lat ?? 'N/A', e.lon ?? 'N/A',
     e.md5, `${e.d1}-${e.d2}-${e.d3}`,
-    e.raw, e.pred, e.conf,
-    e.eval === null ? 'Chưa đánh giá' : e.eval ? 'Đúng' : 'Sai'
-  ].join(','));
+    e.raw, e.adj, e.pred, e.conf,
+    e.eval === null ? 'Chưa đánh giá' : e.eval ? 'Đúng' : 'Sai',
+  ].map(csvQ).join(','));
 
-  const csv  = '\uFEFF' + [hdr.join(','), ...rows].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const csv  = '\uFEFF' + [hdr.join(','), ...rows].join('\r\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
-  a.href     = url;
-  a.download = 'xucxac_' + fmtFilename() + '.csv';
-  a.click();
+  a.href = url; a.download = 'xucxac_v3_' + fmtFile() + '.csv'; a.click();
   URL.revokeObjectURL(url);
-  showToast('📥 Đã tải CSV — ' + S.log.length + ' dòng');
+  showToast('📥 Đã tải CSV — '+S.log.length+' dòng');
 }
 
-// ================================================================
-// SECTION TOGGLE  (FIX #2: use id lookup not DOM traversal)
-// ================================================================
-function toggleSection(bodyId, headId){
-  const body = document.getElementById(bodyId);
-  const head = document.getElementById(headId);
-  const open = body.classList.toggle('open');
-  head.classList.toggle('open', open);
+// ════════════════════════════════════════════════════════════════════
+// SECTION TOGGLE
+// ════════════════════════════════════════════════════════════════════
+function toggleSec(bodyId, headId){
+  const b = document.getElementById(bodyId);
+  const h = document.getElementById(headId);
+  const o = b.classList.toggle('open');
+  h.classList.toggle('open', o);
 }
-
 // Auto-open on desktop
 if(window.innerWidth >= 640){
-  ['bodyWeather','bodyBias','bodyManual'].forEach(id=>{
-    const b = document.getElementById(id);
-    const h = document.getElementById(id.replace('body','head'));
-    if(b && h){ b.classList.add('open'); h.classList.add('open'); }
+  ['bWeather','bBias'].forEach(id => {
+    document.getElementById(id).classList.add('open');
+    document.getElementById(id.replace('b','h')).classList.add('open');
   });
 }
 
-// ================================================================
+// ════════════════════════════════════════════════════════════════════
 // TOAST
-// ================================================================
-let toastTmr = null;
+// ════════════════════════════════════════════════════════════════════
+let toastT = null;
 function showToast(msg){
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.classList.add('show');
-  clearTimeout(toastTmr);
-  toastTmr = setTimeout(()=>t.classList.remove('show'), 2400);
+  clearTimeout(toastT);
+  toastT = setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-// ================================================================
+// ════════════════════════════════════════════════════════════════════
 // UTILS
-// ================================================================
-function pad(n)  { return String(n).padStart(2,'0'); }
-function padMs(n){ return String(n).padStart(3,'0'); }
-function fmtTime(d){ return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds()); }
-function fmtFilename(){
+// ════════════════════════════════════════════════════════════════════
+function pad(n){ return String(n).padStart(2,'0'); }
+function pad3(n){ return String(n).padStart(3,'0'); }
+// FIX H: full datetime string
+function fmtDatetime(d){
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+
+    ' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+}
+function fmtFile(){
   const d=new Date();
-  return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
+  return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'_'+pad(d.getHours())+pad(d.getMinutes());
 }
 
-// ================================================================
+// ════════════════════════════════════════════════════════════════════
 // INIT
-// ================================================================
+// ════════════════════════════════════════════════════════════════════
 load();
 renderStats();
 renderBias();
 renderLog();
-renderLockedPred();
-fetchLocation();
+renderLocked();
+fetchLoc();
 </script>
 </body>
 </html>
