@@ -3,410 +3,471 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
-<title>🎲 XÚC XẮC TIÊN TRI v5</title>
+<title>🎲 TÀI XỈU TIÊN TRI — Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"
+  onerror="loadFallbackMD5()"></script>
 <style>
+/* ══════════════════════ TOKENS ══════════════════════ */
 :root{
-  --bg:#07090f;--s1:#0f1521;--s2:#151e2e;--bd:#1e2a3d;
-  --xoai:#f5c518;--xg:rgba(245,197,24,.18);
-  --tao:#3ec6f5;--tg:rgba(62,198,245,.16);
-  --ok:#22d47a;--err:#ff4d6d;--warn:#f5a623;--info:#a78bfa;
-  --mut:#4a607a;--txt:#c8d8f0;--dim:#6a829c;
-  --r:13px;--rs:7px;
+  --bg:#07090f;--s1:#0f1622;--s2:#141d2e;--s3:#1a2540;
+  --bd:#1f2d42;--bd2:#263550;
+  --tai:#3ec6f5;  --tg:rgba(62,198,245,.15);
+  --xiu:#f5c518;  --xg:rgba(245,197,24,.15);
+  --ok:#22d47a;   --err:#ff4d6d;--warn:#f5a623;
+  --info:#a78bfa; --mut:#45607a;
+  --txt:#ccd8f0;  --dim:#6a849c;
+  --r:14px;--rs:8px;--rm:10px;
   --font:'Segoe UI',system-ui,sans-serif;
   --mono:'Courier New',monospace;
+  --shadow:0 2px 20px rgba(0,0,0,.4);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:var(--font);background:var(--bg);color:var(--txt);min-height:100vh;-webkit-font-smoothing:antialiased}
+html{font-size:16px;scroll-behavior:smooth}
+body{font-family:var(--font);background:var(--bg);color:var(--txt);
+  min-height:100vh;-webkit-font-smoothing:antialiased}
 button{font-family:inherit;cursor:pointer;border:none;outline:none}
-input,textarea{font-family:inherit}
-.app{max-width:720px;margin:0 auto;padding:13px 11px 90px;display:flex;flex-direction:column;gap:11px}
-/* header */
-.hdr{text-align:center;padding:14px 0 4px}
-.hdr h1{font-size:clamp(1.2rem,5vw,1.75rem);font-weight:900;color:#fff;letter-spacing:-.5px}
-.hdr p{font-size:.7rem;color:var(--dim);margin-top:3px}
-/* card */
-.card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:13px}
-.clabel{font-size:.63rem;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.09em;margin-bottom:8px}
-/* hero */
-.hero{background:var(--s1);border:2px solid var(--bd);border-radius:var(--r);padding:18px 13px 14px;text-align:center;transition:border-color .2s,box-shadow .2s}
-.hero.xoai{border-color:var(--xoai);box-shadow:0 0 40px var(--xg),inset 0 0 50px var(--xg)}
-.hero.tao{border-color:var(--tao);box-shadow:0 0 40px var(--tg),inset 0 0 50px var(--tg)}
-.hero.split{border-color:var(--warn);box-shadow:0 0 28px rgba(245,166,35,.15)}
-.hlbl{font-size:.65rem;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;margin-bottom:3px}
-.hres{font-size:clamp(3rem,13vw,5rem);font-weight:900;line-height:1;letter-spacing:-2px}
-.hero.xoai .hres{color:var(--xoai);text-shadow:0 0 40px var(--xoai)}
-.hero.tao  .hres{color:var(--tao);text-shadow:0 0 40px var(--tao)}
-.hero.split .hres{color:var(--warn);text-shadow:0 0 28px var(--warn)}
-.htag{font-size:.57rem;padding:2px 7px;border-radius:99px;background:rgba(167,139,250,.15);color:var(--info);border:1px solid rgba(167,139,250,.3);margin-left:5px;vertical-align:middle}
-.hsub{display:flex;justify-content:center;gap:12px;margin-top:8px;flex-wrap:wrap}
-.hsub span{font-size:.72rem;color:var(--dim)}
-.hsub strong{color:var(--txt)}
-.cbar{height:4px;background:var(--bd);border-radius:99px;margin-top:10px;overflow:hidden}
-.cfill{height:100%;border-radius:99px;transition:width .3s,background .3s}
-.dice-row{display:flex;justify-content:center;gap:9px;margin-top:8px}
-.die{width:40px;height:40px;background:var(--s2);border:2px solid var(--bd);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:900;color:#fff;transition:.2s}
-.xoai .die{border-color:var(--xoai);box-shadow:0 0 8px var(--xg)}
-.tao  .die{border-color:var(--tao);box-shadow:0 0 8px var(--tg)}
-.split .die{border-color:var(--warn)}
-/* clock */
-.crow{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
-.clk{font-size:.8rem;font-family:var(--mono);color:var(--dim);flex:1}
-.clk span{color:var(--txt)}
-.pbadge{font-size:.61rem;background:#ff4d6d18;color:var(--err);border:1px solid #ff4d6d44;border-radius:99px;padding:2px 8px;display:none}
-.pbadge.show{display:inline}
-.mode-badge{font-size:.61rem;padding:2px 8px;border-radius:99px;margin-left:6px}
-.mode-live{background:rgba(34,212,122,.12);color:var(--ok);border:1px solid rgba(34,212,122,.3)}
-.mode-manual{background:rgba(167,139,250,.12);color:var(--info);border:1px solid rgba(167,139,250,.3)}
-/* md5 */
-.md5box{font-family:var(--mono);font-size:.62rem;color:var(--dim);word-break:break-all;padding:7px 9px;background:var(--bg);border-radius:var(--rs);border:1px solid var(--bd);min-height:32px;user-select:all}
-.sinfo{font-size:.63rem;font-family:var(--mono);color:var(--dim);padding:6px 9px;background:var(--bg);border-radius:var(--rs);border:1px solid var(--bd);word-break:break-all;line-height:1.65;margin-top:6px}
-.sinfo strong{color:var(--txt)}
-/* md5 input */
-.md5ta{font-family:var(--mono);font-size:.7rem;resize:none;height:54px;width:100%;background:var(--bg);border:2px solid var(--bd);border-radius:var(--rs);color:var(--txt);padding:8px 10px;transition:.15s}
-.md5ta:focus{outline:none;border-color:var(--tao)}
-.md5ta.valid{border-color:var(--ok)}
-.md5ta.invalid{border-color:var(--err)}
-.md5hint{font-size:.63rem;margin-top:4px;color:var(--dim);font-family:var(--mono)}
-.md5hint.ok{color:var(--ok)}.md5hint.err{color:var(--err)}
-/* algo table */
-.atbl{width:100%;border-collapse:collapse;font-size:.65rem}
-.atbl th{background:var(--bg);color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:5px 6px;text-align:left;white-space:nowrap;position:sticky;top:0;z-index:1}
-.atbl td{padding:5px 6px;border-bottom:1px solid var(--bd);white-space:nowrap;color:var(--dim)}
-.atbl tr.best td{background:rgba(34,212,122,.07);color:var(--txt)}
-.atbl tr:hover td{background:var(--s2)}
-.atbl tr:last-child td{border:none}
-.sbar{display:inline-block;height:5px;border-radius:99px;vertical-align:middle;transition:width .4s}
-.tx{color:var(--xoai);font-weight:700}.tt{color:var(--tao);font-weight:700}
-.tok2{color:var(--ok)}.tmu{color:var(--mut)}
-.awrap{overflow-x:auto;max-height:260px;overflow-y:auto}
-/* btn */
-.btn{flex:1;min-width:80px;padding:10px 8px;border-radius:var(--rs);font-size:.78rem;font-weight:700;transition:.14s}
+input{font-family:inherit}
+a{color:var(--tai)}
+/* scrollbar */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:99px}
+
+/* ══════════════════════ LAYOUT ══════════════════════ */
+.shell{display:grid;grid-template-columns:1fr;min-height:100vh}
+@media(min-width:1024px){.shell{grid-template-columns:340px 1fr}}
+
+/* SIDEBAR */
+.sidebar{background:var(--s1);border-right:1px solid var(--bd);
+  padding:0;display:flex;flex-direction:column;
+  position:sticky;top:0;height:100vh;overflow-y:auto;overflow-x:hidden}
+@media(max-width:1023px){.sidebar{position:static;height:auto}}
+
+.brand{padding:18px 16px 14px;border-bottom:1px solid var(--bd)}
+.brand h1{font-size:1.15rem;font-weight:900;color:#fff;letter-spacing:-.3px}
+.brand p{font-size:.67rem;color:var(--dim);margin-top:2px}
+
+/* MAIN */
+.main{padding:16px;display:flex;flex-direction:column;gap:12px;flex:1}
+@media(min-width:1024px){.main{padding:20px}}
+
+/* ══════════════════════ CARDS ══════════════════════ */
+.card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);
+  padding:14px;box-shadow:var(--shadow)}
+.card-sm{background:var(--s2);border:1px solid var(--bd);border-radius:var(--rm);padding:12px}
+.clabel{font-size:.62rem;font-weight:700;color:var(--mut);text-transform:uppercase;
+  letter-spacing:.09em;margin-bottom:9px}
+
+/* ══════════════════════ CONNECTION ══════════════════ */
+.conn-bar{display:flex;align-items:center;gap:8px;padding:10px 16px;
+  border-bottom:1px solid var(--bd);background:var(--s2)}
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;transition:.3s}
+.online  .status-dot{background:var(--ok);box-shadow:0 0 8px var(--ok);animation:pulse 2s infinite}
+.offline .status-dot{background:var(--err)}
+.waiting .status-dot{background:var(--warn);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.status-txt{font-size:.72rem;font-weight:700;flex:1}
+.online  .status-txt{color:var(--ok)}
+.offline .status-txt{color:var(--err)}
+.waiting .status-txt{color:var(--warn)}
+.ping-badge{font-size:.6rem;color:var(--dim);font-family:var(--mono)}
+
+/* ══════════════════════ HERO PREDICTION ══════════════ */
+.hero{border-radius:var(--r);padding:20px 16px 16px;text-align:center;
+  border:2px solid var(--bd);transition:border-color .25s,box-shadow .25s;
+  background:var(--s1)}
+.hero.tai{border-color:var(--tai);box-shadow:0 0 40px var(--tg),inset 0 0 60px var(--tg)}
+.hero.xiu{border-color:var(--xiu);box-shadow:0 0 40px var(--xg),inset 0 0 60px var(--xg)}
+.hero-sub{font-size:.65rem;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;margin-bottom:4px}
+.hero-result{font-size:clamp(3rem,12vw,4.8rem);font-weight:900;line-height:1;letter-spacing:-2px}
+.hero.tai .hero-result{color:var(--tai);text-shadow:0 0 40px var(--tai)}
+.hero.xiu .hero-result{color:var(--xiu);text-shadow:0 0 40px var(--xiu)}
+.hero-meta{display:flex;justify-content:center;gap:16px;margin-top:10px;flex-wrap:wrap}
+.hero-meta span{font-size:.73rem;color:var(--dim)}
+.hero-meta strong{color:var(--txt)}
+.cbar{height:5px;background:var(--bd);border-radius:99px;margin-top:12px;overflow:hidden}
+.cfill{height:100%;border-radius:99px;transition:width .4s ease,background .4s}
+/* reason tags */
+.reason-tags{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:10px}
+.rtag{font-size:.58rem;padding:2px 8px;border-radius:99px;font-weight:600}
+.rtag.pattern{background:rgba(167,139,250,.15);color:var(--info);border:1px solid rgba(167,139,250,.3)}
+.rtag.volume{background:rgba(245,166,35,.12);color:var(--warn);border:1px solid rgba(245,166,35,.3)}
+.rtag.streak{background:rgba(62,198,245,.12);color:var(--tai);border:1px solid rgba(62,198,245,.3)}
+
+/* ══════════════════════ CURRENT SESSION ══════════════ */
+.session-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media(min-width:640px){.session-grid{grid-template-columns:repeat(4,1fr)}}
+.stat-box{background:var(--s2);border:1px solid var(--bd);border-radius:var(--rm);
+  padding:10px 8px;text-align:center}
+.stat-val{font-size:1.3rem;font-weight:800;color:#fff;line-height:1}
+.stat-lbl{font-size:.59rem;color:var(--mut);margin-top:3px}
+
+/* ══════════════════════ DICE DISPLAY ══════════════════ */
+.dice-row{display:flex;justify-content:center;gap:10px;margin:8px 0}
+.die{width:44px;height:44px;background:var(--s3);border:2px solid var(--bd2);
+  border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-size:1.5rem;font-weight:900;color:#fff;transition:.2s}
+.die.tai-c{border-color:var(--tai);box-shadow:0 0 10px var(--tg)}
+.die.xiu-c{border-color:var(--xiu);box-shadow:0 0 10px var(--xg)}
+
+/* ══════════════════════ BETTING VOLUME ══════════════== */
+.vol-row{display:flex;align-items:center;gap:8px;margin:6px 0}
+.vol-lbl{font-size:.68rem;width:32px;font-weight:700}
+.vol-bar-wrap{flex:1;height:8px;background:var(--bd);border-radius:99px;overflow:hidden}
+.vol-bar{height:100%;border-radius:99px;transition:width .5s ease}
+.vol-pct{font-size:.65rem;width:36px;text-align:right;font-family:var(--mono)}
+.tai-bar{background:linear-gradient(90deg,var(--tai),#2a9fbf)}
+.xiu-bar{background:linear-gradient(90deg,var(--xiu),#c4a015)}
+
+/* ══════════════════════ PATTERN DISPLAY ══════════════= */
+.pattern-chain{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.pchip{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;
+  justify-content:center;font-size:.62rem;font-weight:800}
+.pchip.T{background:rgba(62,198,245,.2);color:var(--tai);border:1px solid rgba(62,198,245,.35)}
+.pchip.X{background:rgba(245,197,24,.2);color:var(--xiu);border:1px solid rgba(245,197,24,.35)}
+.pattern-name{font-size:.68rem;margin-top:8px;color:var(--warn);font-weight:600}
+
+/* ══════════════════════ MD5 VERIFIER ═════════════════= */
+.md5-wrap{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.md5-str{font-family:var(--mono);font-size:.61rem;color:var(--dim);
+  word-break:break-all;flex:1;line-height:1.5}
+.verify-badge{font-size:.62rem;padding:3px 10px;border-radius:99px;font-weight:700;
+  white-space:nowrap;flex-shrink:0}
+.match   {background:rgba(34,212,122,.15);color:var(--ok);border:1px solid rgba(34,212,122,.4)}
+.mismatch{background:rgba(255,77,109,.15);color:var(--err);border:1px solid rgba(255,77,109,.4)}
+.pending {background:rgba(90,96,122,.15);color:var(--dim);border:1px solid var(--bd)}
+
+/* ══════════════════════ LOG TABLE ════════════════════= */
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;
+  max-height:420px;overflow-y:auto}
+.logtbl{width:100%;border-collapse:collapse;font-size:.64rem;white-space:nowrap}
+.logtbl th{background:var(--bg);color:var(--mut);font-weight:600;text-transform:uppercase;
+  letter-spacing:.05em;padding:6px 8px;text-align:left;
+  position:sticky;top:0;z-index:2;border-bottom:1px solid var(--bd)}
+.logtbl td{padding:5px 8px;border-bottom:1px solid var(--bd);color:var(--dim)}
+.logtbl tr:last-child td{border:none}
+.logtbl tr:hover td{background:var(--s2)}
+.ct{color:var(--tai);font-weight:700}.cx{color:var(--xiu);font-weight:700}
+.tok{color:var(--ok);font-weight:700}.terr{color:var(--err);font-weight:700}
+.tmu{color:var(--mut)}
+.lempty{text-align:center;color:var(--mut);padding:24px;font-size:.72rem}
+
+/* ══════════════════════ CHART (mini bar) ═════════════= */
+.minichart{display:flex;align-items:flex-end;gap:2px;height:48px;margin-top:6px}
+.mbar{flex:1;min-width:4px;border-radius:3px 3px 0 0;transition:height .3s}
+.mbar.T{background:var(--tai)}.mbar.X{background:var(--xiu)}
+
+/* ══════════════════════ INPUTS & BUTTONS ══════════════ */
+.inp{background:var(--bg);border:1px solid var(--bd);border-radius:var(--rs);
+  color:var(--txt);padding:8px 11px;font-size:.78rem;width:100%;
+  transition:border-color .15s}
+.inp:focus{outline:none;border-color:var(--tai)}
+.inp-row{display:flex;gap:7px;align-items:center}
+.btn{padding:8px 14px;border-radius:var(--rs);font-size:.76rem;font-weight:700;transition:.14s;cursor:pointer}
 .btn:active{transform:scale(.97)}
-.bp{background:var(--s2);color:var(--txt);border:1px solid var(--bd)}
-.bpri{background:linear-gradient(135deg,#2563eb,#1d3fa6);color:#fff}
-.bok{background:linear-gradient(135deg,#15803d,#166534);color:#fff}
-.berr{background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff}
-.bcsv{background:var(--s2);color:var(--tao);border:1px solid var(--tao);font-size:.7rem}
-.btn:disabled{opacity:.35;cursor:not-allowed}
-.ctrl{display:flex;gap:7px;flex-wrap:wrap}
-/* inputs */
-.ig{display:flex;flex-direction:column;gap:4px}
-.ig label{font-size:.64rem;color:var(--dim)}
-.ig input{background:var(--bg);border:1px solid var(--bd);border-radius:var(--rs);color:var(--txt);padding:7px 9px;font-size:.77rem;width:100%;transition:.14s}
-.ig input:focus{outline:none;border-color:var(--tao)}
-.igrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
-/* section */
-.shead{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none}
-.shead .arr{font-size:.68rem;color:var(--mut);transition:.17s}
-.shead.open .arr{transform:rotate(180deg)}
-.sbody{display:none;margin-top:9px}
-.sbody.open{display:block}
-/* lockbox */
-.lockbox{background:var(--bg);border:1px solid var(--bd);border-radius:var(--rs);padding:8px 10px;margin-bottom:9px;font-size:.71rem;line-height:1.7;min-height:38px}
-/* stats */
-.sgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;text-align:center}
-.sbox{background:var(--bg);border:1px solid var(--bd);border-radius:var(--rs);padding:8px 4px}
-.sval{font-size:1.2rem;font-weight:800;color:#fff;line-height:1}
-.slbl{font-size:.58rem;color:var(--mut);margin-top:2px}
-/* log */
-.lwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;max-height:300px;overflow-y:auto}
-.ltbl{width:100%;border-collapse:collapse;font-size:.63rem}
-.ltbl th{background:var(--bg);color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:5px 6px;text-align:left;white-space:nowrap;position:sticky;top:0;z-index:1}
-.ltbl td{padding:5px 6px;border-bottom:1px solid var(--bd);white-space:nowrap;color:var(--dim)}
-.ltbl tr:hover td{background:var(--s2)}
-.ltbl tr:last-child td{border:none}
-.lempty{text-align:center;color:var(--mut);font-size:.7rem;padding:20px}
-/* weather */
-.wxrow{font-size:.63rem;padding:5px 8px;border-radius:var(--rs);background:var(--bg);border:1px solid var(--bd);color:var(--dim);display:flex;align-items:center;gap:5px}
-.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-.dok{background:var(--ok);box-shadow:0 0 5px var(--ok)}
-.dwarn{background:var(--warn);box-shadow:0 0 5px var(--warn)}
-.derr{background:var(--err)}
-/* toast */
-.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(68px);background:var(--s1);border:1px solid var(--bd);border-radius:99px;padding:8px 18px;font-size:.75rem;color:var(--txt);pointer-events:none;transition:.25s;opacity:0;z-index:999;white-space:nowrap;max-width:96vw}
+.btn-pri{background:linear-gradient(135deg,#2563eb,#1d3fa6);color:#fff;border:none}
+.btn-sec{background:var(--s3);color:var(--txt);border:1px solid var(--bd)}
+.btn-ok{background:linear-gradient(135deg,#15803d,#166534);color:#fff;border:none}
+.btn-csv{background:var(--s2);color:var(--tai);border:1px solid var(--tai);font-size:.7rem}
+.btn-sm{padding:5px 10px;font-size:.68rem}
+
+/* ══════════════════════ SIDEBAR SECTIONS ══════════════ */
+.sb-section{padding:12px 14px;border-bottom:1px solid var(--bd)}
+.sb-section:last-child{border:none}
+.info-row{display:flex;justify-content:space-between;align-items:center;
+  font-size:.7rem;padding:3px 0;border-bottom:1px solid var(--bd)}
+.info-row:last-child{border:none}
+.info-row .k{color:var(--dim)}
+.info-row .v{font-family:var(--mono);color:var(--txt);font-size:.69rem}
+
+/* ══════════════════════ ALGO STATS ════════════════════ */
+.algo-stat{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center}
+.algo-box{background:var(--bg);border:1px solid var(--bd);border-radius:var(--rs);padding:8px 4px}
+.algo-val{font-size:1.15rem;font-weight:800;color:#fff;line-height:1}
+.algo-lbl{font-size:.57rem;color:var(--mut);margin-top:2px}
+
+/* ══════════════════════ TOAST ══════════════════════════ */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(70px);
+  background:var(--s1);border:1px solid var(--bd);border-radius:99px;
+  padding:9px 20px;font-size:.76rem;color:var(--txt);pointer-events:none;
+  transition:.26s;opacity:0;z-index:9999;white-space:nowrap;max-width:96vw}
 .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
-/* CryptoJS fallback warning */
-.crypto-warn{background:rgba(255,77,109,.1);border:1px solid rgba(255,77,109,.3);border-radius:var(--rs);padding:8px 11px;font-size:.7rem;color:var(--err);display:none}
-::-webkit-scrollbar{width:3px;height:3px}
-::-webkit-scrollbar-thumb{background:var(--bd);border-radius:99px}
-@media(min-width:640px){.app{padding:18px 16px 80px}}
+
+/* ══════════════════════ RESPONSIVE ════════════════════ */
+@media(max-width:1023px){
+  .shell{flex-direction:column}
+  .sidebar{height:auto;position:static}
+}
+@media(max-width:640px){
+  .session-grid{grid-template-columns:1fr 1fr}
+  .hero-result{font-size:clamp(2.8rem,15vw,4.5rem)}
+}
 </style>
 </head>
 <body>
-<div class="app">
+<div class="shell">
 
-<!-- HEADER -->
-<div class="hdr">
-  <h1>🎲 XÚC XẮC TIÊN TRI v5</h1>
-  <p>Seed nội bộ real-time · Dán MD5 từ app · 14 thuật toán song song · Tự học</p>
-</div>
-
-<!-- CryptoJS warning -->
-<div class="crypto-warn" id="cryptoWarn">
-  ⚠️ Không tải được CryptoJS (CDN bị chặn?). Đang dùng MD5 nội bộ thay thế...
-</div>
-
-<!-- HERO -->
-<div class="hero" id="hero">
-  <div class="hlbl">DỰ ĐOÁN TỐT NHẤT <span class="htag" id="heroTag">—</span></div>
-  <div class="hres" id="heroRes">—</div>
-  <div class="dice-row">
-    <div class="die" id="d1">?</div>
-    <div class="die" id="d2">?</div>
-    <div class="die" id="d3">?</div>
+<!-- ════════════════════ SIDEBAR ════════════════════ -->
+<aside class="sidebar">
+  <div class="brand">
+    <h1>🎲 TÀI XỈU TIÊN TRI</h1>
+    <p>Phân tích realtime · Soi cầu · Dự đoán AI</p>
   </div>
-  <div class="hsub">
-    <span>Tổng: <strong id="heroSum">—</strong></span>
-    <span>Tin cậy: <strong id="heroConf">—</strong></span>
-    <span>Đồng thuận: <strong id="heroCons">—</strong></span>
-  </div>
-  <div class="cbar"><div class="cfill" id="cfill" style="width:50%"></div></div>
-</div>
 
-<!-- CLOCK + PAUSE -->
-<div class="card">
-  <div class="crow">
-    <div class="clk">
-      🕐 <span id="clockDisp">00:00:00.000</span>
-      <span class="pbadge" id="pbadge">PAUSED</span>
-      <span class="mode-badge mode-live" id="modeBadge">● LIVE</span>
+  <!-- Connection status -->
+  <div class="conn-bar waiting" id="connBar">
+    <div class="status-dot"></div>
+    <span class="status-txt" id="connTxt">Đang kết nối...</span>
+    <span class="ping-badge" id="pingBadge">—</span>
+  </div>
+
+  <!-- API URL config -->
+  <div class="sb-section">
+    <div class="clabel">🔗 API Endpoint</div>
+    <div class="inp-row">
+      <input class="inp" id="apiUrl" value="https://reported-prot-prefers-cattle.trycloudflare.com/api/txmd5"
+        placeholder="https://..."/>
+      <button class="btn btn-pri btn-sm" onclick="reconnect()">↻</button>
     </div>
-    <button class="btn bp" id="btnPause" onclick="togglePause()" style="flex:none;min-width:auto;padding:8px 13px">⏸ Tạm dừng</button>
-  </div>
-</div>
-
-<!-- MD5 LIVE + SEED INFO -->
-<div class="card">
-  <div class="clabel">🔑 MD5 Hash — Seed real-time</div>
-  <div class="md5box" id="md5Live" title="Nhấn để chọn">—</div>
-  <div class="sinfo" id="seedInfo">Seed: chờ dữ liệu thời tiết...</div>
-</div>
-
-<!-- MD5 MANUAL INPUT -->
-<div class="card">
-  <div class="shead" id="hManual" onclick="toggleSec('bManual','hManual')">
-    <span class="clabel" style="margin:0">✏️ Dán MD5 từ app ngoài</span>
-    <span class="arr">▼</span>
-  </div>
-  <div class="sbody open" id="bManual">
-    <div class="ig" style="margin-top:8px">
-      <label>Dán chuỗi MD5 (32 ký tự hex) — phân tích ngay lập tức</label>
-      <textarea class="md5ta" id="md5In" placeholder="Dán MD5 vào đây...&#10;Ví dụ: d41d8cd98f00b204e9800998ecf8427e" spellcheck="false"></textarea>
-    </div>
-    <div class="md5hint" id="md5Hint">Chờ MD5...</div>
-    <div style="display:flex;gap:7px;margin-top:7px">
-      <button class="btn bp" onclick="clearManual()" style="flex:none;min-width:auto;padding:7px 10px;font-size:.7rem">✕ Xóa / Live</button>
-      <button class="btn bpri" id="btnAnalyze" onclick="doAnalyze()" disabled style="flex:1">🔍 Phân tích ngay</button>
+    <div style="margin-top:6px;display:flex;gap:6px">
+      <button class="btn btn-ok btn-sm" id="btnFetch" onclick="toggleAuto()">⏸ Dừng</button>
+      <span style="font-size:.63rem;color:var(--dim);align-self:center">Chu kỳ: <strong id="cycleDisp" style="color:var(--txt)">1.5s</strong></span>
     </div>
   </div>
-</div>
 
-<!-- ALGO TABLE -->
-<div class="card">
-  <div class="shead" id="hAlgo" onclick="toggleSec('bAlgo','hAlgo')">
-    <span class="clabel" style="margin:0">📊 14 Thuật toán song song <span id="algoSum" style="color:var(--info);font-weight:400;font-size:.62rem"></span></span>
-    <span class="arr">▼</span>
+  <!-- Phiên hiện tại -->
+  <div class="sb-section">
+    <div class="clabel">📌 Phiên hiện tại</div>
+    <div class="info-row"><span class="k">Phiên cược</span><span class="v" id="sbPhien">—</span></div>
+    <div class="info-row"><span class="k">Cập nhật</span><span class="v" id="sbTime">—</span></div>
+    <div class="info-row"><span class="k">Tổng điểm</span><span class="v" id="sbTong">—</span></div>
+    <div class="info-row"><span class="k">Kết quả</span><span class="v" id="sbKQ">—</span></div>
+    <div class="info-row"><span class="k">Phiên tiếp theo</span><span class="v" id="sbNext" style="color:var(--warn)">—</span></div>
   </div>
-  <div class="sbody open" id="bAlgo">
-    <div class="awrap">
-      <table class="atbl">
+
+  <!-- Volume cược -->
+  <div class="sb-section">
+    <div class="clabel">💰 Khối lượng cược</div>
+    <div class="vol-row">
+      <span class="vol-lbl" style="color:var(--tai)">TÀI</span>
+      <div class="vol-bar-wrap"><div class="vol-bar tai-bar" id="vbarTai" style="width:50%"></div></div>
+      <span class="vol-pct" id="vpctTai" style="color:var(--tai)">50%</span>
+    </div>
+    <div class="vol-row">
+      <span class="vol-lbl" style="color:var(--xiu)">XỈU</span>
+      <div class="vol-bar-wrap"><div class="vol-bar xiu-bar" id="vbarXiu" style="width:50%"></div></div>
+      <span class="vol-pct" id="vpctXiu" style="color:var(--xiu)">50%</span>
+    </div>
+    <div style="margin-top:8px;font-size:.63rem;color:var(--dim)">
+      Người cược: <span id="ncTai" style="color:var(--tai)">—</span> TÀI /
+                  <span id="ncXiu" style="color:var(--xiu)">—</span> XỈU
+    </div>
+    <div style="margin-top:3px;font-size:.63rem;color:var(--dim)">
+      Tiền TÀI: <span id="tcTai" style="color:var(--txt)">—</span> ·
+      Tiền XỈU: <span id="tcXiu" style="color:var(--txt)">—</span>
+    </div>
+  </div>
+
+  <!-- MD5 Verifier -->
+  <div class="sb-section">
+    <div class="clabel">🔐 MD5 Xác Minh</div>
+    <div class="md5-wrap" style="margin-bottom:6px">
+      <span class="md5-str" id="md5RawDisp">—</span>
+      <span class="verify-badge pending" id="verifyBadge">PENDING</span>
+    </div>
+    <div style="font-size:.62rem;color:var(--dim)">
+      Hash hệ thống: <span class="md5-str" id="md5SysDisp" style="display:inline">—</span>
+    </div>
+    <div style="font-size:.62rem;color:var(--dim);margin-top:3px">
+      Hash tính lại: <span class="md5-str" id="md5CalcDisp" style="display:inline">—</span>
+    </div>
+  </div>
+
+  <!-- Algo stats -->
+  <div class="sb-section">
+    <div class="clabel">📈 Hiệu suất dự đoán</div>
+    <div class="algo-stat">
+      <div class="algo-box"><div class="algo-val" id="algoTotal">0</div><div class="algo-lbl">Tổng dự đoán</div></div>
+      <div class="algo-box"><div class="algo-val" id="algoOk" style="color:var(--ok)">0</div><div class="algo-lbl">Đúng</div></div>
+      <div class="algo-box"><div class="algo-val" id="algoAcc">—</div><div class="algo-lbl">Chính xác</div></div>
+    </div>
+    <div style="margin-top:8px">
+      <button class="btn btn-sec btn-sm" onclick="resetStats()" style="width:100%">🔄 Reset thống kê</button>
+    </div>
+  </div>
+</aside>
+
+<!-- ════════════════════ MAIN CONTENT ════════════════════ -->
+<main class="main">
+
+  <!-- HERO PREDICTION -->
+  <div class="hero" id="hero">
+    <div class="hero-sub">DỰ ĐOÁN PHIÊN TIẾP THEO</div>
+    <div class="hero-result" id="heroResult">—</div>
+    <div class="reason-tags" id="reasonTags"></div>
+    <div class="hero-meta">
+      <span>Phiên: <strong id="heroPred">—</strong></span>
+      <span>Tin cậy: <strong id="heroConf">—</strong></span>
+      <span>Soi cầu: <strong id="heroCau">—</strong></span>
+    </div>
+    <div class="cbar"><div class="cfill" id="cfill" style="width:50%"></div></div>
+  </div>
+
+  <!-- CURRENT RESULT + DICE -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+      <div class="clabel" style="margin:0">🎲 Kết quả phiên hiện tại</div>
+      <div style="font-size:.68rem;color:var(--dim)">Phiên: <strong id="curPhien" style="color:var(--txt)">—</strong></div>
+    </div>
+    <div class="dice-row" id="diceRow">
+      <div class="die" id="die1">?</div>
+      <div class="die" id="die2">?</div>
+      <div class="die" id="die3">?</div>
+    </div>
+    <div style="text-align:center;margin-top:6px">
+      <span style="font-size:.72rem;color:var(--dim)">Tổng: </span>
+      <strong id="curTong" style="font-size:1.1rem;color:#fff">—</strong>
+      <span style="margin:0 10px;font-size:.72rem;color:var(--dim)">→</span>
+      <strong id="curKQ" style="font-size:1.2rem">—</strong>
+    </div>
+  </div>
+
+  <!-- ROW: PATTERN + VOLUME CHART -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <!-- Pattern / Soi cầu -->
+    <div class="card">
+      <div class="clabel">🔮 Soi Cầu (30 phiên)</div>
+      <div class="pattern-chain" id="patternChain"></div>
+      <div class="pattern-name" id="patternName">Chưa đủ dữ liệu</div>
+      <div style="margin-top:6px;font-size:.65rem;color:var(--dim)" id="patternDesc"></div>
+    </div>
+    <!-- Mini score chart -->
+    <div class="card">
+      <div class="clabel">📊 Biểu đồ điểm (20 phiên)</div>
+      <div class="minichart" id="miniChart"></div>
+      <div style="margin-top:6px;display:flex;justify-content:space-between;font-size:.62rem">
+        <span style="color:var(--tai)">■ TÀI (11-18)</span>
+        <span style="color:var(--xiu)">■ XỈU (3-10)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SESSION STATS -->
+  <div class="card">
+    <div class="clabel">📌 Thống kê phiên đang theo dõi</div>
+    <div class="session-grid">
+      <div class="stat-box">
+        <div class="stat-val" id="stTotal">0</div>
+        <div class="stat-lbl">Tổng phiên</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="stTai" style="color:var(--tai)">0</div>
+        <div class="stat-lbl">TÀI</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="stXiu" style="color:var(--xiu)">0</div>
+        <div class="stat-lbl">XỈU</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="stStreak">0</div>
+        <div class="stat-lbl">Chuỗi hiện tại</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOG TABLE -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <div class="clabel" style="margin:0">📋 Lịch sử phiên cược (<span id="logCount">0</span>)</div>
+      <button class="btn btn-csv btn-sm" onclick="exportCSV()">⬇ Xuất CSV</button>
+    </div>
+    <div class="tbl-wrap">
+      <table class="logtbl">
         <thead>
-          <tr><th>⭐</th><th>Thuật toán</th><th>🎲</th><th>Σ</th><th>Cửa</th><th>Điểm</th><th>Acc</th><th>N</th></tr>
+          <tr>
+            <th>Phiên</th><th>Thời gian</th>
+            <th>🎲 Xúc xắc</th><th>Tổng</th><th>Kết quả</th>
+            <th>TÀI (người/tiền)</th><th>XỈU (người/tiền)</th>
+            <th>Dự đoán</th><th>Đúng?</th><th>MD5</th>
+          </tr>
         </thead>
-        <tbody id="algoBody"><tr><td colspan="8" class="lempty">Đang tính toán...</td></tr></tbody>
+        <tbody id="logBody">
+          <tr><td colspan="10" class="lempty">Đang kết nối API...</td></tr>
+        </tbody>
       </table>
     </div>
-    <div style="margin-top:7px;font-size:.62rem;color:var(--dim)">
-      ⭐ = thuật toán dẫn đầu · Điểm tăng khi ĐÚNG (+20/+40 nếu khớp chính xác dice), giảm khi SAI (−15)
-    </div>
   </div>
-</div>
 
-<!-- FEEDBACK -->
-<div class="card">
-  <div class="clabel">📊 Đánh giá — Giúp tool tự học</div>
-  <p style="font-size:.7rem;color:var(--dim);margin-bottom:8px">Sau khi app gieo → so kết quả thực với dự đoán đã khóa → bấm:</p>
-  <div class="lockbox" id="lockBox">
-    <span style="color:var(--dim)">Chưa có dự đoán khóa — bấm ⏸ hoặc dán MD5 để khóa</span>
-  </div>
-  <div class="ctrl" style="margin-bottom:9px">
-    <button class="btn bok"  id="btnOk"  onclick="feedback(true)"  disabled>✅ ĐÚNG</button>
-    <button class="btn berr" id="btnErr" onclick="feedback(false)" disabled>❌ SAI</button>
-  </div>
-  <!-- Nhập dice thực -->
-  <div style="background:var(--bg);border:1px solid var(--bd);border-radius:var(--rs);padding:9px">
-    <div style="font-size:.63rem;color:var(--dim);margin-bottom:6px">🎯 Nhập kết quả dice thực (tuỳ chọn — giúp nhận diện thuật toán nhanh hơn 3×)</div>
-    <div style="display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap">
-      <div class="ig" style="flex:1;min-width:55px"><label>Dice 1</label><input type="number" id="rD1" min="1" max="6" placeholder="1-6"/></div>
-      <div class="ig" style="flex:1;min-width:55px"><label>Dice 2</label><input type="number" id="rD2" min="1" max="6" placeholder="1-6"/></div>
-      <div class="ig" style="flex:1;min-width:55px"><label>Dice 3</label><input type="number" id="rD3" min="1" max="6" placeholder="1-6"/></div>
-      <button class="btn bpri" onclick="feedbackDice()" id="btnFbD" disabled style="flex:2;min-width:110px;padding:8px">🎯 Xác nhận dice thực</button>
-    </div>
-    <div id="diceInfo" style="margin-top:6px;font-size:.63rem;color:var(--dim)"></div>
-  </div>
-  <div id="fbHint" style="margin-top:7px;font-size:.65rem;color:var(--mut)">Chưa có phản hồi.</div>
-</div>
-
-<!-- LEARN STATUS -->
-<div class="card">
-  <div class="shead" id="hLearn" onclick="toggleSec('bLearn','hLearn')">
-    <span class="clabel" style="margin:0">🧠 Trạng thái tự học</span>
-    <span class="arr">▼</span>
-  </div>
-  <div class="sbody open" id="bLearn">
-    <div id="learnStatus" style="font-size:.71rem;color:var(--dim);margin-top:8px;line-height:1.75">
-      Chưa có dữ liệu. Cần ≥3 lượt phản hồi.
-    </div>
-    <button class="btn bp" onclick="resetLearn()" style="width:100%;margin-top:10px;font-size:.7rem">🔄 Reset học — về điểm bằng nhau</button>
-  </div>
-</div>
-
-<!-- WEATHER -->
-<div class="card">
-  <div class="shead" id="hWx" onclick="toggleSec('bWx','hWx')">
-    <span class="clabel" style="margin:0">🌡️ Vị trí & Nhiệt độ (Seed nội bộ)</span>
-    <span class="arr">▼</span>
-  </div>
-  <div class="sbody open" id="bWx">
-    <div style="display:flex;flex-direction:column;gap:8px">
-      <div class="wxrow"><div class="dot dwarn" id="wxDot"></div><span id="wxTxt">Chưa lấy vị trí</span></div>
-      <div class="igrid">
-        <div class="ig"><label>Vĩ độ</label><input type="number" id="iLat" step="any" placeholder="21.0285" oninput="onGeo()"/></div>
-        <div class="ig"><label>Kinh độ</label><input type="number" id="iLon" step="any" placeholder="105.8542" oninput="onGeo()"/></div>
-      </div>
-      <div class="ig"><label>Nhiệt độ °C (tự động hoặc nhập tay)</label><input type="number" id="iTemp" step="0.1" placeholder="30.0" oninput="onTemp()"/></div>
-      <button class="btn bpri" onclick="fetchLoc()" style="width:100%">📍 Lấy vị trí & nhiệt độ tự động</button>
-    </div>
-  </div>
-</div>
-
-<!-- STATS -->
-<div class="card">
-  <div class="clabel">📈 Thống kê tích lũy</div>
-  <div class="sgrid">
-    <div class="sbox"><div class="sval" id="stT">0</div><div class="slbl">Tổng lượt</div></div>
-    <div class="sbox"><div class="sval" id="stO" style="color:var(--ok)">0</div><div class="slbl">Đúng</div></div>
-    <div class="sbox"><div class="sval" id="stF" style="color:var(--err)">0</div><div class="slbl">Sai</div></div>
-    <div class="sbox"><div class="sval" id="stA">—</div><div class="slbl">Chính xác</div></div>
-  </div>
-</div>
-
-<!-- LOG -->
-<div class="card">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
-    <div class="clabel" style="margin:0">📋 Lịch sử (<span id="logCnt">0</span> lượt)</div>
-    <button class="btn bcsv" onclick="exportCSV()" style="flex:none;min-width:auto;padding:5px 11px">⬇ CSV</button>
-  </div>
-  <div class="lwrap">
-    <table class="ltbl">
-      <thead>
-        <tr><th>#</th><th>Ngày giờ</th><th>Nguồn</th><th>MD5 prefix</th><th>Algo</th><th>🎲</th><th>Σ</th><th>Cửa</th><th>Tin cậy</th><th>Kết quả</th></tr>
-      </thead>
-      <tbody id="logBody"><tr><td colspan="10" class="lempty">Chưa có dữ liệu</td></tr></tbody>
-    </table>
-  </div>
-</div>
-
-</div><!-- .app -->
+</main>
+</div><!-- .shell -->
 <div class="toast" id="toast"></div>
 
 <script>
 // ═══════════════════════════════════════════════════════════════════
-// MD5 NỘI BỘ — fallback khi CDN bị block
-// RFC 1321 implementation (compact)
+// MD5 NỘI BỘ — fallback khi CDN bị chặn
 // ═══════════════════════════════════════════════════════════════════
-function md5Internal(str){
+function loadFallbackMD5(){
+  window._md5Fallback=true;
+  console.warn('CryptoJS CDN failed — using internal MD5');
+}
+function md5Calc(str){
+  if(!window._md5Fallback && typeof CryptoJS!=='undefined'){
+    return CryptoJS.MD5(str).toString();
+  }
+  // Internal MD5 (RFC 1321)
   function safeAdd(x,y){var lsw=(x&0xFFFF)+(y&0xFFFF),msw=(x>>16)+(y>>16)+(lsw>>16);return(msw<<16)|(lsw&0xFFFF)}
-  function bitRotate(num,cnt){return(num<<cnt)|(num>>>(32-cnt))}
-  function md5cmn(q,a,b,x,s,t){return safeAdd(bitRotate(safeAdd(safeAdd(a,q),safeAdd(x,t)),s),b)}
-  function md5ff(a,b,c,d,x,s,t){return md5cmn((b&c)|((~b)&d),a,b,x,s,t)}
-  function md5gg(a,b,c,d,x,s,t){return md5cmn((b&d)|(c&(~d)),a,b,x,s,t)}
-  function md5hh(a,b,c,d,x,s,t){return md5cmn(b^c^d,a,b,x,s,t)}
-  function md5ii(a,b,c,d,x,s,t){return md5cmn(c^(b|(~d)),a,b,x,s,t)}
-  function str2binl(s){var o={},c=8;for(var i=0;i<s.length*c;i+=c)o[i>>5]|=(s.charCodeAt(i/c)&0xFF)<<(i%32);return o}
-  function binl2hex(a){var h='0123456789abcdef',s='';for(var i=0;i<a.length*4;i++){s+=h.charAt((a[i>>2]>>((i%4)*8+4))&0xF)+h.charAt((a[i>>2]>>((i%4)*8))&0xF)}return s}
-  function binlMD5(x,len){
+  function bitRot(n,c){return(n<<c)|(n>>>(32-c))}
+  function cmn(q,a,b,x,s,t){return safeAdd(bitRot(safeAdd(safeAdd(a,q),safeAdd(x,t)),s),b)}
+  function ff(a,b,c,d,x,s,t){return cmn((b&c)|((~b)&d),a,b,x,s,t)}
+  function gg(a,b,c,d,x,s,t){return cmn((b&d)|(c&(~d)),a,b,x,s,t)}
+  function hh(a,b,c,d,x,s,t){return cmn(b^c^d,a,b,x,s,t)}
+  function ii(a,b,c,d,x,s,t){return cmn(c^(b|(~d)),a,b,x,s,t)}
+  function s2b(s){var o={};for(var i=0;i<s.length*8;i+=8)o[i>>5]|=(s.charCodeAt(i/8)&0xFF)<<(i%32);return o}
+  function b2h(a){var h='0123456789abcdef',s='';for(var i=0;i<a.length*4;i++)s+=h[(a[i>>2]>>((i%4)*8+4))&0xF]+h[(a[i>>2]>>((i%4)*8))&0xF];return s}
+  function core(x,len){
     x[len>>5]|=0x80<<(len%32);x[(((len+64)>>>9)<<4)+14]=len;
     var a=1732584193,b=-271733879,c=-1732584194,d=271733878;
     for(var i=0;i<x.length;i+=16){
       var oa=a,ob=b,oc=c,od=d;
-      a=md5ff(a,b,c,d,x[i],7,-680876936);d=md5ff(d,a,b,c,x[i+1],12,-389564586);c=md5ff(c,d,a,b,x[i+2],17,606105819);b=md5ff(b,c,d,a,x[i+3],22,-1044525330);
-      a=md5ff(a,b,c,d,x[i+4],7,-176418897);d=md5ff(d,a,b,c,x[i+5],12,1200080426);c=md5ff(c,d,a,b,x[i+6],17,-1473231341);b=md5ff(b,c,d,a,x[i+7],22,-45705983);
-      a=md5ff(a,b,c,d,x[i+8],7,1770035416);d=md5ff(d,a,b,c,x[i+9],12,-1958414417);c=md5ff(c,d,a,b,x[i+10],17,-42063);b=md5ff(b,c,d,a,x[i+11],22,-1990404162);
-      a=md5ff(a,b,c,d,x[i+12],7,1804603682);d=md5ff(d,a,b,c,x[i+13],12,-40341101);c=md5ff(c,d,a,b,x[i+14],17,-1502002290);b=md5ff(b,c,d,a,x[i+15],22,1236535329);
-      a=md5gg(a,b,c,d,x[i+1],5,-165796510);d=md5gg(d,a,b,c,x[i+6],9,-1069501632);c=md5gg(c,d,a,b,x[i+11],14,643717713);b=md5gg(b,c,d,a,x[i],20,-373897302);
-      a=md5gg(a,b,c,d,x[i+5],5,-701558691);d=md5gg(d,a,b,c,x[i+10],9,38016083);c=md5gg(c,d,a,b,x[i+15],14,-660478335);b=md5gg(b,c,d,a,x[i+4],20,-405537848);
-      a=md5gg(a,b,c,d,x[i+9],5,568446438);d=md5gg(d,a,b,c,x[i+14],9,-1019803690);c=md5gg(c,d,a,b,x[i+3],14,-187363961);b=md5gg(b,c,d,a,x[i+8],20,1163531501);
-      a=md5gg(a,b,c,d,x[i+13],5,-1444681467);d=md5gg(d,a,b,c,x[i+2],9,-51403784);c=md5gg(c,d,a,b,x[i+7],14,1735328473);b=md5gg(b,c,d,a,x[i+12],20,-1926607734);
-      a=md5hh(a,b,c,d,x[i+5],4,-378558);d=md5hh(d,a,b,c,x[i+8],11,-2022574463);c=md5hh(c,d,a,b,x[i+11],16,1839030562);b=md5hh(b,c,d,a,x[i+14],23,-35309556);
-      a=md5hh(a,b,c,d,x[i+1],4,-1530992060);d=md5hh(d,a,b,c,x[i+4],11,1272893353);c=md5hh(c,d,a,b,x[i+7],16,-155497632);b=md5hh(b,c,d,a,x[i+10],23,-1094730640);
-      a=md5hh(a,b,c,d,x[i+13],4,681279174);d=md5hh(d,a,b,c,x[i],11,-358537222);c=md5hh(c,d,a,b,x[i+3],16,-722521979);b=md5hh(b,c,d,a,x[i+6],23,76029189);
-      a=md5hh(a,b,c,d,x[i+9],4,-640364487);d=md5hh(d,a,b,c,x[i+12],11,-421815835);c=md5hh(c,d,a,b,x[i+15],16,530742520);b=md5hh(b,c,d,a,x[i+2],23,-995338651);
-      a=md5ii(a,b,c,d,x[i],6,-198630844);d=md5ii(d,a,b,c,x[i+7],10,1126891415);c=md5ii(c,d,a,b,x[i+14],15,-1416354905);b=md5ii(b,c,d,a,x[i+5],21,-57434055);
-      a=md5ii(a,b,c,d,x[i+12],6,1700485571);d=md5ii(d,a,b,c,x[i+3],10,-1894986606);c=md5ii(c,d,a,b,x[i+10],15,-1051523);b=md5ii(b,c,d,a,x[i+1],21,-2054922799);
-      a=md5ii(a,b,c,d,x[i+8],6,1873313359);d=md5ii(d,a,b,c,x[i+15],10,-30611744);c=md5ii(c,d,a,b,x[i+6],15,-1560198380);b=md5ii(b,c,d,a,x[i+13],21,1309151649);
-      a=md5ii(a,b,c,d,x[i+4],6,-145523070);d=md5ii(d,a,b,c,x[i+11],10,-1120210379);c=md5ii(c,d,a,b,x[i+2],15,718787259);b=md5ii(b,c,d,a,x[i+9],21,-343485551);
+      a=ff(a,b,c,d,x[i+0],7,-680876936);d=ff(d,a,b,c,x[i+1],12,-389564586);c=ff(c,d,a,b,x[i+2],17,606105819);b=ff(b,c,d,a,x[i+3],22,-1044525330);
+      a=ff(a,b,c,d,x[i+4],7,-176418897);d=ff(d,a,b,c,x[i+5],12,1200080426);c=ff(c,d,a,b,x[i+6],17,-1473231341);b=ff(b,c,d,a,x[i+7],22,-45705983);
+      a=ff(a,b,c,d,x[i+8],7,1770035416);d=ff(d,a,b,c,x[i+9],12,-1958414417);c=ff(c,d,a,b,x[i+10],17,-42063);b=ff(b,c,d,a,x[i+11],22,-1990404162);
+      a=ff(a,b,c,d,x[i+12],7,1804603682);d=ff(d,a,b,c,x[i+13],12,-40341101);c=ff(c,d,a,b,x[i+14],17,-1502002290);b=ff(b,c,d,a,x[i+15],22,1236535329);
+      a=gg(a,b,c,d,x[i+1],5,-165796510);d=gg(d,a,b,c,x[i+6],9,-1069501632);c=gg(c,d,a,b,x[i+11],14,643717713);b=gg(b,c,d,a,x[i+0],20,-373897302);
+      a=gg(a,b,c,d,x[i+5],5,-701558691);d=gg(d,a,b,c,x[i+10],9,38016083);c=gg(c,d,a,b,x[i+15],14,-660478335);b=gg(b,c,d,a,x[i+4],20,-405537848);
+      a=gg(a,b,c,d,x[i+9],5,568446438);d=gg(d,a,b,c,x[i+14],9,-1019803690);c=gg(c,d,a,b,x[i+3],14,-187363961);b=gg(b,c,d,a,x[i+8],20,1163531501);
+      a=gg(a,b,c,d,x[i+13],5,-1444681467);d=gg(d,a,b,c,x[i+2],9,-51403784);c=gg(c,d,a,b,x[i+7],14,1735328473);b=gg(b,c,d,a,x[i+12],20,-1926607734);
+      a=hh(a,b,c,d,x[i+5],4,-378558);d=hh(d,a,b,c,x[i+8],11,-2022574463);c=hh(c,d,a,b,x[i+11],16,1839030562);b=hh(b,c,d,a,x[i+14],23,-35309556);
+      a=hh(a,b,c,d,x[i+1],4,-1530992060);d=hh(d,a,b,c,x[i+4],11,1272893353);c=hh(c,d,a,b,x[i+7],16,-155497632);b=hh(b,c,d,a,x[i+10],23,-1094730640);
+      a=hh(a,b,c,d,x[i+13],4,681279174);d=hh(d,a,b,c,x[i+0],11,-358537222);c=hh(c,d,a,b,x[i+3],16,-722521979);b=hh(b,c,d,a,x[i+6],23,76029189);
+      a=hh(a,b,c,d,x[i+9],4,-640364487);d=hh(d,a,b,c,x[i+12],11,-421815835);c=hh(c,d,a,b,x[i+15],16,530742520);b=hh(b,c,d,a,x[i+2],23,-995338651);
+      a=ii(a,b,c,d,x[i+0],6,-198630844);d=ii(d,a,b,c,x[i+7],10,1126891415);c=ii(c,d,a,b,x[i+14],15,-1416354905);b=ii(b,c,d,a,x[i+5],21,-57434055);
+      a=ii(a,b,c,d,x[i+12],6,1700485571);d=ii(d,a,b,c,x[i+3],10,-1894986606);c=ii(c,d,a,b,x[i+10],15,-1051523);b=ii(b,c,d,a,x[i+1],21,-2054922799);
+      a=ii(a,b,c,d,x[i+8],6,1873313359);d=ii(d,a,b,c,x[i+15],10,-30611744);c=ii(c,d,a,b,x[i+6],15,-1560198380);b=ii(b,c,d,a,x[i+13],21,1309151649);
+      a=ii(a,b,c,d,x[i+4],6,-145523070);d=ii(d,a,b,c,x[i+11],10,-1120210379);c=ii(c,d,a,b,x[i+2],15,718787259);b=ii(b,c,d,a,x[i+9],21,-343485551);
       a=safeAdd(a,oa);b=safeAdd(b,ob);c=safeAdd(c,oc);d=safeAdd(d,od);
     }
     return[a,b,c,d];
   }
-  var bStr=unescape(encodeURIComponent(str));
-  return binl2hex(binlMD5(str2binl(bStr),bStr.length*8));
+  var bs=unescape(encodeURIComponent(str));
+  return b2h(core(s2b(bs),bs.length*8));
 }
-
-// FIX LỖI 7: kiểm tra CryptoJS và fallback
-let useCryptoJS = false;
-function computeMD5(s){
-  if(useCryptoJS) return CryptoJS.MD5(s).toString();
-  return md5Internal(s);
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// 14 THUẬT TOÁN MD5 → DICE
-// Bao phủ tất cả pattern phổ biến của app dice online Việt Nam
-// ═══════════════════════════════════════════════════════════════════
-const ALGOS = [
-  // ── Group 1: Single byte ──
-  { id:'A1', name:'Byte[0,1,2]',     fn:h=>{ const b=i=>parseInt(h.slice(i*2,i*2+2),16); return[b(0)%6+1,b(1)%6+1,b(2)%6+1] } },
-  { id:'A2', name:'Byte[0,4,8]',     fn:h=>{ const b=i=>parseInt(h.slice(i*2,i*2+2),16); return[b(0)%6+1,b(4)%6+1,b(8)%6+1] } },
-  { id:'A3', name:'Byte[0,5,10]',    fn:h=>{ const b=i=>parseInt(h.slice(i*2,i*2+2),16); return[b(0)%6+1,b(5)%6+1,b(10)%6+1] } },
-  { id:'A4', name:'Byte[3,8,13]',    fn:h=>{ const b=i=>parseInt(h.slice(i*2,i*2+2),16); return[b(3)%6+1,b(8)%6+1,b(13)%6+1] } },
-  // ── Group 2: 2-byte word ──
-  { id:'B1', name:'Word2B[0,8,16]',  fn:h=>[ parseInt(h.slice(0,4),16)%6+1, parseInt(h.slice(8,12),16)%6+1, parseInt(h.slice(16,20),16)%6+1 ] },
-  { id:'B2', name:'Word2B[0,4,8]',   fn:h=>[ parseInt(h.slice(0,4),16)%6+1, parseInt(h.slice(4,8),16)%6+1, parseInt(h.slice(8,12),16)%6+1 ] },
-  { id:'B3', name:'Word2B[4,12,20]', fn:h=>[ parseInt(h.slice(4,8),16)%6+1, parseInt(h.slice(12,16),16)%6+1, parseInt(h.slice(20,24),16)%6+1 ] },
-  // ── Group 3: 4-byte dword ──
-  { id:'C1', name:'DWord4B[0,8,16]', fn:h=>[ parseInt(h.slice(0,8),16)%6+1, parseInt(h.slice(8,16),16)%6+1, parseInt(h.slice(16,24),16)%6+1 ] },
-  { id:'C2', name:'DWord4B[0,4,8]',  fn:h=>[ parseInt(h.slice(0,8),16)%6+1, parseInt(h.slice(4,12),16)%6+1, parseInt(h.slice(8,16),16)%6+1 ] },
-  // ── Group 4: Fold operations ──
-  { id:'D1', name:'XOR-fold 3grp',   fn:h=>{ const b=Array.from({length:16},(_,i)=>parseInt(h.slice(i*2,i*2+2),16)); return[(b[0]^b[1]^b[2]^b[3]^b[4])%6+1,(b[5]^b[6]^b[7]^b[8]^b[9])%6+1,(b[10]^b[11]^b[12]^b[13]^b[14]^b[15])%6+1] } },
-  { id:'D2', name:'Sum-fold 3grp',   fn:h=>{ const b=Array.from({length:16},(_,i)=>parseInt(h.slice(i*2,i*2+2),16)); return[b.slice(0,5).reduce((a,v)=>a+v,0)%6+1,b.slice(5,10).reduce((a,v)=>a+v,0)%6+1,b.slice(10,16).reduce((a,v)=>a+v,0)%6+1] } },
-  // ── Group 5: BigInt toàn bộ hash ──
-  { id:'E1', name:'BigInt full mod',  fn:h=>{ try{ const n=BigInt('0x'+h); return[Number(n%6n)+1,Number((n>>8n)%6n)+1,Number((n>>16n)%6n)+1] }catch(_){ return[1,1,1] } } },
-  { id:'E2', name:'BigInt shift 3B',  fn:h=>{ try{ const n=BigInt('0x'+h); return[Number(n%6n)+1,Number((n>>24n)%6n)+1,Number((n>>48n)%6n)+1] }catch(_){ return[1,1,1] } } },
-  // ── Group 6: Little-endian byte swap ──
-  { id:'F1', name:'LE byte[0,4,8]',  fn:h=>{ const le=i=>{const a=parseInt(h.slice(i*8,i*8+2),16),b2=parseInt(h.slice(i*8+2,i*8+4),16),c=parseInt(h.slice(i*8+4,i*8+6),16),d2=parseInt(h.slice(i*8+6,i*8+8),16);return(d2<<24|c<<16|b2<<8|a)>>>0}; return[le(0)%6+1,le(1)%6+1,le(2)%6+1] } },
-];
 
 // ═══════════════════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════════════════
-const MAX_LOG = 3000;
+const MAX_HISTORY   = 50;   // phiên lưu để soi cầu
+const MAX_LOG       = 5000; // giới hạn log
+const FETCH_INTERVAL= 1500; // ms
+
 const S = {
-  lat:null, lon:null, temp:30,
-  paused:false,
-  manualMode:false,
-  startTime:Date.now(),
-  currentPred:null,
-  lockedPred:null,
-  lastFbId:null,
-  currentMD5:'',
-  currentResults:null,
-  bestAlgoId:null,
-  algoScores: Object.fromEntries(ALGOS.map(a=>[a.id,100])),
-  algoStats:  Object.fromEntries(ALGOS.map(a=>[a.id,{ok:0,fail:0}])),
-  log:[],
-  stats:{total:0,ok:0,fail:0},
+  running: true,
+  fetchTimer: null,
+  lastPhien: null,       // phiên đã xử lý
+  history: [],           // [{phien, kq, tong, d1,d2,d3, ...}]
+  log: [],               // bảng log đầy đủ
+  prediction: null,      // dự đoán phiên tiếp theo
+  predPhien: null,       // phiên mà dự đoán nhắm tới
+  algo: {total:0, ok:0}, // thống kê thuật toán
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -414,529 +475,530 @@ const S = {
 // ═══════════════════════════════════════════════════════════════════
 function save(){
   try{
-    localStorage.setItem('xxs5_sc', JSON.stringify(S.algoScores));
-    localStorage.setItem('xxs5_as', JSON.stringify(S.algoStats));
-    localStorage.setItem('xxs5_lg', JSON.stringify(S.log));
-    localStorage.setItem('xxs5_st', JSON.stringify(S.stats));
+    localStorage.setItem('tx5_log',  JSON.stringify(S.log));
+    localStorage.setItem('tx5_algo', JSON.stringify(S.algo));
+    localStorage.setItem('tx5_hist', JSON.stringify(S.history.slice(-MAX_HISTORY)));
   }catch(e){
-    if(/quota/i.test(e.name)){
-      S.log.splice(0,Math.floor(S.log.length*0.2));
-      try{localStorage.setItem('xxs5_lg',JSON.stringify(S.log))}catch(_){}
-    }
+    if(/quota/i.test(e.name)){ S.log.splice(0,Math.floor(S.log.length*.15)); }
   }
 }
-function load(){
+function loadPersist(){
   try{
-    const sc=localStorage.getItem('xxs5_sc');
-    const as=localStorage.getItem('xxs5_as');
-    const lg=localStorage.getItem('xxs5_lg');
-    const st=localStorage.getItem('xxs5_st');
-    if(sc) S.algoScores={...S.algoScores,...JSON.parse(sc)};
-    if(as) S.algoStats ={...S.algoStats, ...JSON.parse(as)};
-    if(lg) S.log   =JSON.parse(lg);
-    if(st) S.stats =JSON.parse(st);
+    const l=localStorage.getItem('tx5_log');
+    const a=localStorage.getItem('tx5_algo');
+    const h=localStorage.getItem('tx5_hist');
+    if(l) S.log=JSON.parse(l);
+    if(a) S.algo=JSON.parse(a);
+    if(h) S.history=JSON.parse(h);
   }catch(_){}
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// SEED & HASH
+// API FETCH
 // ═══════════════════════════════════════════════════════════════════
-function buildSeed(ts,temp,lat,lon){
-  const la=lat!==null?lat.toFixed(6):'null';
-  const lo=lon!==null?lon.toFixed(6):'null';
-  return `${ts}|${parseFloat(temp).toFixed(2)}|${la},${lo}`;
-}
+async function fetchAPI(){
+  const url = document.getElementById('apiUrl').value.trim();
+  if(!url){ setConn('offline','Chưa có URL'); return; }
 
-// ═══════════════════════════════════════════════════════════════════
-// RUN ALL 14 ALGOS
-// ═══════════════════════════════════════════════════════════════════
-function runAll(md5){
-  return ALGOS.map(a=>{
-    let dice; try{ dice=a.fn(md5); }catch(_){ dice=[1,1,1]; }
-    const [d1,d2,d3]=dice;
-    const sum=d1+d2+d3;
-    return{id:a.id,name:a.name,d1,d2,d3,sum,gate:sum<=10?'XOÀI':'TÁO',score:S.algoScores[a.id]};
-  });
-}
+  const t0 = Date.now();
+  const ctrl = new AbortController();
+  const timer = setTimeout(()=>ctrl.abort(), 8000);
 
-function bestOf(results){ return results.reduce((b,r)=>r.score>b.score?r:b,results[0]); }
+  try{
+    setConn('waiting','Đang tải...');
+    const res = await fetch(url, {
+      signal: ctrl.signal,
+      headers: {'Accept':'application/json'},
+      mode: 'cors',
+      cache: 'no-store',
+    });
+    clearTimeout(timer);
 
-function ensemble(results){
-  const tot=results.reduce((s,r)=>s+r.score,0);
-  const xs =results.filter(r=>r.gate==='XOÀI').reduce((s,r)=>s+r.score,0);
-  const ts =tot-xs;
-  const xc =results.filter(r=>r.gate==='XOÀI').length;
-  const tc =results.length-xc;
-  // FIX LỖI 3c: dùng > thay >= để tránh tie luôn ra XOÀI
-  const gate=xs>ts?'XOÀI':'TÁO';
-  const conf=Math.round(Math.max(xs,ts)/tot*100);
-  return{gate,conf,xs:Math.round(xs/tot*100),ts:Math.round(ts/tot*100),xc,tc};
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// REAL-TIME LOOP — FIX LỖI 1: khôi phục RAF + clock
-// ═══════════════════════════════════════════════════════════════════
-let rafLast=0, logTimer=0;
-function tick(ts){
-  requestAnimationFrame(tick);
-  // Clock luôn chạy
-  const el=Date.now()-S.startTime;
-  document.getElementById('clockDisp').textContent=
-    pad(Math.floor(el/3600000))+':'+pad(Math.floor((el%3600000)/60000))+':'+
-    pad(Math.floor((el%60000)/1000))+'.'+pad3(el%1000);
-
-  if(document.hidden||S.paused||S.manualMode) return;
-  if(ts-rafLast<60) return;
-  rafLast=ts;
-
-  const now=Date.now();
-  const seed=buildSeed(now,S.temp,S.lat,S.lon);
-  const hash=computeMD5(seed);
-  S.currentMD5=hash;
-  const results=runAll(hash);
-  const best=bestOf(results);
-  const vote=ensemble(results);
-  S.bestAlgoId=best.id;
-  S.currentPred={...best,vote,seed,datetime:fmtDT(new Date(now)),src:'live'};
-  S.currentResults=results;
-
-  renderHero(best,vote);
-  renderAlgoTable(results,best.id);
-  document.getElementById('md5Live').textContent=hash;
-  document.getElementById('seedInfo').innerHTML=
-    `Seed: <strong>${seed.slice(0,72)}${seed.length>72?'…':''}</strong>`;
-
-  // Auto-log mỗi 3s
-  if(Date.now()-logTimer>=3000){
-    logTimer=Date.now();
-    const last=S.log[S.log.length-1];
-    if(!last||last.md5!==hash){
-      if(S.log.length>=MAX_LOG) S.log.splice(0,Math.floor(MAX_LOG*0.1));
-      S.log.push({...S.currentPred,md5:hash,eval:null,realDice:null});
-      renderLog(); save();
-    }
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const ping = Date.now()-t0;
+    setConn('online', `ONLINE · ${ping}ms`);
+    document.getElementById('pingBadge').textContent = ping+'ms';
+    processData(data);
+  }catch(err){
+    clearTimeout(timer);
+    const msg = err.name==='AbortError' ? 'Timeout (>8s)' :
+                err.message.includes('fetch') ? 'Lỗi kết nối / CORS' :
+                err.message;
+    setConn('offline', `OFFLINE — ${msg}`);
   }
 }
-requestAnimationFrame(tick);
+
+function setConn(type, msg){
+  const bar = document.getElementById('connBar');
+  bar.className = 'conn-bar '+type;
+  document.getElementById('connTxt').textContent =
+    type==='online' ? '● ONLINE' :
+    type==='offline'? '● OFFLINE' : '◉ Kết nối...';
+  if(type!=='waiting')
+    document.getElementById('connTxt').textContent = msg || (type==='online'?'● ONLINE':'● OFFLINE');
+}
 
 // ═══════════════════════════════════════════════════════════════════
-// PAUSE / RESUME
+// PROCESS DATA — bóc tách JSON linh hoạt
 // ═══════════════════════════════════════════════════════════════════
-function togglePause(){
-  S.paused=!S.paused;
-  const btn=document.getElementById('btnPause');
-  document.getElementById('pbadge').classList.toggle('show',S.paused);
-  if(S.paused){
-    btn.textContent='▶ Tiếp tục';
-    if(S.currentPred){
-      S.lockedPred={...S.currentPred};
-      S.lastFbId=null;
-      renderLocked();
-    }
-    showToast('⏸ Tạm dừng — đồng hồ vẫn chạy');
+function processData(raw){
+  // Bóc tách linh hoạt — hỗ trợ nhiều cấu trúc JSON
+  const d = raw.data || raw;
+
+  const phien    = d.phien_cuoc ?? d.phien ?? d.session ?? '—';
+  const tickAt   = d.tick_update_at ?? d.updated_at ?? d.time ?? '';
+  const d1       = Number(d.xuc_xac_1 ?? d.dice1 ?? d.d1 ?? 0);
+  const d2       = Number(d.xuc_xac_2 ?? d.dice2 ?? d.d2 ?? 0);
+  const d3       = Number(d.xuc_xac_3 ?? d.dice3 ?? d.d3 ?? 0);
+  const tong     = Number(d.tong ?? d.total ?? (d1+d2+d3));
+  const ketQua   = d.ket_qua ?? d.result ?? (tong>=11?'Tài':'Xỉu');
+  const md5Raw   = d.md5_raw ?? d.md5 ?? d.hash ?? '';
+  const md5Sys   = d.md5_check ?? d.md5_hash ?? '';
+
+  // Người & tiền cược
+  const ncTai = Number(d.nguoi_cuoc?.tai ?? d.nguoi_tai ?? 0);
+  const ncXiu = Number(d.nguoi_cuoc?.xiu ?? d.nguoi_xiu ?? 0);
+  const tcTai = Number(d.tien_cuoc?.tai ?? d.tien_tai ?? 0);
+  const tcXiu = Number(d.tien_cuoc?.xiu ?? d.tien_xiu ?? 0);
+
+  // Phiên trùng → bỏ qua (trừ volume thay đổi)
+  if(phien === S.lastPhien && tong === (S.history[S.history.length-1]?.tong)){
+    // Vẫn cập nhật volume
+    updateVolume(tcTai, tcXiu, ncTai, ncXiu);
+    return;
+  }
+
+  // Phiên mới → đánh giá dự đoán cũ trước
+  if(S.prediction && S.predPhien === phien){
+    const correct = S.prediction.gate === (tong>=11?'TÀI':'XỈU');
+    S.algo.total++;
+    if(correct) S.algo.ok++;
+    // Gắn đúng/sai vào log entry của phiên này
+    const le = S.log.find(e=>String(e.phien)===String(phien));
+    if(le) le.correct = correct;
+  }
+
+  S.lastPhien = phien;
+
+  // MD5 Verify
+  let md5Calc2='', verified=false;
+  if(md5Raw){
+    md5Calc2 = md5Calc(md5Raw);
+    if(md5Sys) verified = md5Calc2.toLowerCase()===md5Sys.toLowerCase();
+  }
+
+  // Lưu history
+  const isT = tong>=11;
+  const entry = {
+    phien, tick:tickAt, d1,d2,d3, tong,
+    kq: isT?'TÀI':'XỈU', isT,
+    ncTai,ncXiu,tcTai,tcXiu,
+    md5Raw, md5Sys, md5Calc:md5Calc2,
+    verified, correct:null,
+    predictedNext:null,
+  };
+
+  S.history.push(entry);
+  if(S.history.length > MAX_HISTORY) S.history.shift();
+
+  // Thêm vào log
+  if(S.log.length >= MAX_LOG) S.log.splice(0,Math.floor(MAX_LOG*.1));
+  S.log.push({...entry, ts: new Date().toLocaleString('vi-VN')});
+
+  // Tạo dự đoán cho phiên kế tiếp
+  const nextPhien = isNaN(Number(phien)) ? phien+'_next' : Number(phien)+1;
+  S.prediction = predict(S.history);
+  S.predPhien  = nextPhien;
+  entry.predictedNext = S.prediction?.gate;
+
+  // Render tất cả
+  renderSidebar(entry,tcTai,tcXiu,ncTai,ncXiu,md5Raw,md5Sys,md5Calc2,verified,phien,nextPhien);
+  renderHero(S.prediction, nextPhien);
+  renderDice(d1,d2,d3,tong,isT,phien);
+  renderPattern();
+  renderMiniChart();
+  renderSessionStats();
+  renderAlgoStats();
+  renderLog();
+  save();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ██████████ THUẬT TOÁN DỰ ĐOÁN TỔNG HỢP ██████████
+// Kết hợp 3 tín hiệu:
+//   1. Soi Cầu (Pattern Analysis) — trọng số 40%
+//   2. Phân tích Volume cược — trọng số 35%
+//   3. Tần suất thống kê — trọng số 25%
+// ═══════════════════════════════════════════════════════════════════
+function predict(hist){
+  if(hist.length < 3) return null;
+  const recent = hist.slice(-30);
+  const chain  = recent.map(h=>h.isT?'T':'X');
+
+  let scores = { TAI:0, XIU:0 }; // tích lũy điểm có trọng số
+  let reasons = [];
+  let cauName  = '?';
+
+  // ── TÍN HIỆU 1: SOI CẦU (40%) ──────────────────────────────────
+  const cauResult = analyzeCau(chain);
+  cauName = cauResult.name;
+  const cauWeight = 40;
+  scores[cauResult.next] += cauResult.conf * cauWeight / 100;
+  scores[cauResult.next==='TAI'?'XIU':'TAI'] += (100-cauResult.conf) * cauWeight / 100;
+  if(cauResult.conf >= 60) reasons.push({label:cauResult.name, cls:'pattern'});
+
+  // ── TÍN HIỆU 2: VOLUME CƯỢC (35%) ───────────────────────────────
+  const volResult = analyzeVolume(hist.slice(-5));
+  const volWeight = 35;
+  if(volResult){
+    scores[volResult.favor] += volResult.conf * volWeight / 100;
+    scores[volResult.favor==='TAI'?'XIU':'TAI'] += (100-volResult.conf)*volWeight/100;
+    if(volResult.conf>=60) reasons.push({label:'Volume '+volResult.label, cls:'volume'});
   } else {
-    btn.textContent='⏸ Tạm dừng';
-    if(!S.manualMode){
-      document.getElementById('modeBadge').textContent='● LIVE';
-      document.getElementById('modeBadge').className='mode-badge mode-live';
-    }
-    showToast('▶ Tiếp tục live');
+    // Không có tín hiệu volume → chia đều
+    scores.TAI += volWeight/2;
+    scores.XIU += volWeight/2;
   }
-}
 
-// ═══════════════════════════════════════════════════════════════════
-// MANUAL MD5 — dán từ app ngoài
-// ═══════════════════════════════════════════════════════════════════
-const md5El=document.getElementById('md5In');
-md5El.addEventListener('input',onMD5Input);
-function onMD5Input(){
-  const v=md5El.value.trim().toLowerCase();
-  const hint=document.getElementById('md5Hint');
-  const btn=document.getElementById('btnAnalyze');
-  if(!v){md5El.className='md5ta';hint.className='md5hint';hint.textContent='Chờ MD5...';btn.disabled=true;return;}
-  const valid=/^[0-9a-f]{32}$/.test(v);
-  const hexLen=v.replace(/[^0-9a-f]/gi,'').length;
-  if(valid){
-    md5El.className='md5ta valid';
-    hint.className='md5hint ok';
-    hint.textContent=`✅ Hợp lệ 32 ký tự — sẵn sàng`;
-    btn.disabled=false;
-    doAnalyze(v); // auto-analyze
+  // ── TÍN HIỆU 3: THỐNG KÊ TẦN SUẤT (25%) ────────────────────────
+  const freqWeight = 25;
+  const taiCount = recent.filter(h=>h.isT).length;
+  const xiuCount = recent.length - taiCount;
+  const taiRatio = taiCount/recent.length;
+  // Nếu một cửa áp đảo quá nhiều → xu hướng hồi về trung bình
+  if(taiRatio > 0.65){
+    scores.XIU += freqWeight * 0.7;
+    scores.TAI += freqWeight * 0.3;
+    reasons.push({label:`TÀI áp đảo ${taiCount}/${recent.length}`, cls:'streak'});
+  } else if(taiRatio < 0.35){
+    scores.TAI += freqWeight * 0.7;
+    scores.XIU += freqWeight * 0.3;
+    reasons.push({label:`XỈU áp đảo ${xiuCount}/${recent.length}`, cls:'streak'});
   } else {
-    md5El.className='md5ta'+(v.length>32?' invalid':'');
-    hint.className='md5hint'+(v.length>32?' err':'');
-    hint.textContent=`${hexLen}/32 hex${v.length>32?' — quá dài!':''}`;
-    btn.disabled=true;
+    scores.TAI += freqWeight * taiRatio;
+    scores.XIU += freqWeight * (1-taiRatio);
   }
+
+  // ── KẾT QUẢ ─────────────────────────────────────────────────────
+  const totalScore = scores.TAI + scores.XIU;
+  const taiPct     = scores.TAI/totalScore*100;
+  const xiuPct     = 100-taiPct;
+  const winner     = taiPct > xiuPct ? 'TÀI' : 'XỈU';
+  const conf       = Math.round(Math.max(taiPct,xiuPct));
+  const gate       = winner==='TÀI' ? 'TÀI' : 'XỈU';
+
+  return { gate, conf, cauName, reasons, taiPct:Math.round(taiPct) };
 }
 
-function doAnalyze(hash){
-  const v=hash||document.getElementById('md5In').value.trim().toLowerCase();
-  if(!/^[0-9a-f]{32}$/.test(v)){showToast('⚠ MD5 không hợp lệ');return;}
-  S.manualMode=true;
-  S.paused=false; // không cần pause khi dán
-  document.getElementById('modeBadge').textContent='● MANUAL';
-  document.getElementById('modeBadge').className='mode-badge mode-manual';
+// ── SOI CẦU (Pattern) ───────────────────────────────────────────────
+function analyzeCau(chain){
+  if(chain.length<4) return{name:'Chưa đủ',next:'TAI',conf:50};
+  const n=chain.length;
+  const last=chain[n-1];
 
-  const results=runAll(v);
-  const best=bestOf(results);
-  const vote=ensemble(results);
-  S.currentMD5=v; S.currentResults=results; S.bestAlgoId=best.id;
-  const entry={...best,vote,seed:'MANUAL:'+v,datetime:fmtDT(new Date()),src:'manual',md5:v};
-  S.currentPred=entry;
-  S.lockedPred={...entry};
-  S.lastFbId=null;
-
-  renderHero(best,vote);
-  renderAlgoTable(results,best.id);
-  renderLocked();
-  document.getElementById('md5Live').textContent=v;
-  document.getElementById('seedInfo').innerHTML=`Seed: <strong>MANUAL — ${v}</strong>`;
-  updateAlgoSum(vote);
-
-  const last=S.log[S.log.length-1];
-  if(!last||last.md5!==v){
-    if(S.log.length>=MAX_LOG) S.log.splice(0,Math.floor(MAX_LOG*0.1));
-    S.log.push({...entry,eval:null,realDice:null});
-    renderLog(); save();
+  // Cầu bệt (liên tiếp 3+)
+  let streakLen=1;
+  while(streakLen<n && chain[n-1-streakLen]===last) streakLen++;
+  if(streakLen>=3){
+    if(streakLen>=5) return{name:`Bệt ${last}×${streakLen} → sắp bẻ?`,next:last==='T'?'XIU':'TAI',conf:68};
+    return{name:`Cầu bệt ${last}×${streakLen}`,next:last==='T'?'TAI':'XIU',conf:65};
   }
-  showToast(`🔍 ${v.slice(0,8)}… → ${best.gate} (Algo ${best.id})`);
+
+  // Cầu 1-1 (xen kẽ)
+  let alt=true;
+  for(let i=n-1;i>n-6&&i>0;i--){
+    if(chain[i]===chain[i-1]){alt=false;break;}
+  }
+  if(alt&&n>=6){
+    const nextAlt=last==='T'?'XIU':'TAI';
+    return{name:'Cầu 1-1 (xen kẽ)',next:nextAlt,conf:72};
+  }
+
+  // Cầu 2-2
+  if(n>=8){
+    const t=chain.slice(-8);
+    const p='TTXXTXXT XXTTXTTT'.split(' ');
+    const s=t.join('');
+    if(s.slice(-4)===s.slice(-8,-4)){
+      return{name:'Cầu 2-2',next:last==='T'?'TAI':'XIU',conf:63};
+    }
+  }
+
+  // Cầu 3-2-1 (giảm dần)
+  if(n>=6){
+    const t6=chain.slice(-6).join('');
+    if(/^(T{3}X{2}T|X{3}T{2}X)$/.test(t6)||/^(T{2}XT|X{2}TX)$/.test(t6.slice(-4))){
+      return{name:'Cầu 3-2-1',next:last==='T'?'TAI':'XIU',conf:60};
+    }
+  }
+
+  // Cầu đảo 2-2 (phức tạp)
+  if(n>=6){
+    const t=chain.slice(-6);
+    const grps=[];let cur=t[0],cnt=1;
+    for(let i=1;i<t.length;i++){if(t[i]===cur)cnt++;else{grps.push({v:cur,c:cnt});cur=t[i];cnt=1;}}
+    grps.push({v:cur,c:cnt});
+    if(grps.length>=3&&grps[grps.length-1].c===2&&grps[grps.length-2].c===2){
+      return{name:'Cầu đảo 2-2',next:last==='T'?'XIU':'TAI',conf:64};
+    }
+  }
+
+  // Không nhận ra cầu rõ ràng
+  const recentT=chain.slice(-10).filter(x=>x==='T').length;
+  if(recentT>=7) return{name:'Nghiêng TÀI',next:'XIU',conf:58};
+  if(recentT<=3) return{name:'Nghiêng XỈU',next:'TAI',conf:58};
+  return{name:'Không rõ cầu',next:last==='T'?'TAI':'XIU',conf:52};
 }
 
-function clearManual(){
-  document.getElementById('md5In').value='';
-  document.getElementById('md5Hint').className='md5hint';
-  document.getElementById('md5Hint').textContent='Chờ MD5...';
-  document.getElementById('md5In').className='md5ta';
-  document.getElementById('btnAnalyze').disabled=true;
-  S.manualMode=false; S.lockedPred=null;
-  document.getElementById('modeBadge').textContent='● LIVE';
-  document.getElementById('modeBadge').className='mode-badge mode-live';
-  renderLocked();
-  showToast('✕ Xóa MD5 thủ công — trở về live');
+// ── PHÂN TÍCH VOLUME ────────────────────────────────────────────────
+function analyzeVolume(recent){
+  if(!recent.length) return null;
+  const last=recent[recent.length-1];
+  if(!last.tcTai&&!last.tcXiu) return null;
+
+  const totalMoney=last.tcTai+last.tcXiu;
+  if(totalMoney<1) return null;
+
+  const taiRat=last.tcTai/totalMoney;
+  const xiuRat=last.tcXiu/totalMoney;
+
+  // Tiền đổ vào một cửa quá nhiều → thường bị bẻ (nhà cái cân tiền)
+  if(taiRat>0.65) return{favor:'XIU',conf:Math.round(45+taiRat*30),label:`TÀI ${Math.round(taiRat*100)}% tiền`};
+  if(xiuRat>0.65) return{favor:'TAI',conf:Math.round(45+xiuRat*30),label:`XỈU ${Math.round(xiuRat*100)}% tiền`};
+
+  // Cân bằng → theo chiều người ít cược hơn (cửa lạnh)
+  if(taiRat>0.52) return{favor:'TAI',conf:52,label:'Cân bằng'};
+  if(xiuRat>0.52) return{favor:'XIU',conf:52,label:'Cân bằng'};
+  return null;
 }
 
 // ═══════════════════════════════════════════════════════════════════
 // RENDER FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════
-function renderHero(best,vote){
-  const isSplit=vote.conf<58;
+function renderHero(pred, nextPhien){
   const hero=document.getElementById('hero');
-  hero.className='hero '+(isSplit?'split':(best.gate==='XOÀI'?'xoai':'tao'));
-  document.getElementById('heroRes').textContent=best.gate;
-  document.getElementById('heroTag').textContent=`Algo ${best.id}`;
-  document.getElementById('d1').textContent=best.d1;
-  document.getElementById('d2').textContent=best.d2;
-  document.getElementById('d3').textContent=best.d3;
-  document.getElementById('heroSum').textContent=best.sum;
-  const cc=vote.conf>=70?'var(--ok)':vote.conf>=58?'var(--warn)':'var(--err)';
-  document.getElementById('heroConf').innerHTML=`<span style="color:${cc}">${vote.conf}%</span>`;
-  document.getElementById('heroCons').innerHTML=
-    `<span class="tx">${vote.xc}X</span>/<span class="tt">${vote.tc}T</span>`;
-  const fill=document.getElementById('cfill');
-  fill.style.width=vote.conf+'%';
-  fill.style.background=vote.conf>=70?'var(--ok)':vote.conf>=58?'var(--warn)':'var(--err)';
-}
-
-function renderAlgoTable(results,bestId){
-  if(!results){document.getElementById('algoBody').innerHTML='<tr><td colspan="8" class="lempty">Đang tính...</td></tr>';return;}
-  const sorted=[...results].sort((a,b)=>b.score-a.score);
-  const maxSc=Math.max(...sorted.map(r=>r.score));
-  let html='';
-  sorted.forEach((r,i)=>{
-    const isBest=r.id===bestId;
-    const st=S.algoStats[r.id];
-    const tot=st.ok+st.fail;
-    const acc=tot>0?Math.round(st.ok/tot*100):null;
-    const barW=Math.round((r.score/maxSc)*70);
-    const barC=r.score>=150?'var(--ok)':r.score>=80?'var(--warn)':'var(--err)';
-    html+=`<tr${isBest?' class="best"':''}>
-      <td>${isBest?'⭐':(i+1)}</td>
-      <td style="font-size:.62rem;font-weight:${isBest?700:400}">${r.name}</td>
-      <td style="font-family:var(--mono)">${r.d1}·${r.d2}·${r.d3}</td>
-      <td>${r.sum}</td>
-      <td class="${r.gate==='XOÀI'?'tx':'tt'}">${r.gate}</td>
-      <td><span class="sbar" style="width:${barW}px;background:${barC}"></span><span style="margin-left:4px;font-family:var(--mono);font-size:.6rem">${r.score}</span></td>
-      <td>${acc!==null?`<span class="${acc>=60?'tok2':''}">${acc}%</span>`:'<span class="tmu">—</span>'}</td>
-      <td class="tmu">${tot}</td>
-    </tr>`;
-  });
-  document.getElementById('algoBody').innerHTML=html;
-}
-
-function updateAlgoSum(vote){
-  document.getElementById('algoSum').textContent=
-    `— XOÀI ${vote.xs}% · TÁO ${vote.ts}%`;
-}
-
-function renderLocked(){
-  const el=document.getElementById('lockBox');
-  const ok=document.getElementById('btnOk');
-  const err=document.getElementById('btnErr');
-  const fd=document.getElementById('btnFbD');
-  if(!S.lockedPred){
-    el.innerHTML='<span style="color:var(--dim)">Chưa có dự đoán khóa — bấm ⏸ hoặc dán MD5</span>';
-    ok.disabled=err.disabled=fd.disabled=true; return;
+  if(!pred){
+    hero.className='hero';
+    document.getElementById('heroResult').textContent='—';
+    document.getElementById('heroPred').textContent='—';
+    document.getElementById('heroConf').textContent='—';
+    document.getElementById('heroCau').textContent='—';
+    document.getElementById('cfill').style.width='50%';
+    document.getElementById('reasonTags').innerHTML='';
+    return;
   }
-  const lp=S.lockedPred;
-  const col=lp.gate==='XOÀI'?'var(--xoai)':'var(--tao)';
-  const v=lp.vote;
-  el.innerHTML=`Dự đoán: <span style="color:${col};font-weight:800;font-size:.95rem">${lp.gate}</span>
-    &nbsp;·&nbsp;Algo <strong>${lp.id}</strong> (${lp.name})
-    &nbsp;·&nbsp;🎲 ${lp.d1}·${lp.d2}·${lp.d3} &nbsp;·&nbsp; Σ=${lp.sum}
-    <br><span style="font-size:.62rem;color:var(--dim)">
-      Đồng thuận: XOÀI ${v.xc}/14 · TÁO ${v.tc}/14 · Tin cậy ${v.conf}%
-      &nbsp;·&nbsp;<span style="font-family:var(--mono)">${lp.md5?lp.md5.slice(0,14)+'…':''}</span>
-    </span>`;
-  ok.disabled=err.disabled=fd.disabled=false;
+  hero.className='hero '+(pred.gate==='TÀI'?'tai':'xiu');
+  document.getElementById('heroResult').textContent=pred.gate;
+  document.getElementById('heroPred').textContent='#'+nextPhien;
+  document.getElementById('heroConf').textContent=pred.conf+'%';
+  document.getElementById('heroCau').textContent=pred.cauName;
+  const fill=document.getElementById('cfill');
+  fill.style.width=pred.conf+'%';
+  fill.style.background=pred.conf>=70?'var(--ok)':pred.conf>=58?'var(--warn)':'var(--err)';
+
+  const tags=document.getElementById('reasonTags');
+  tags.innerHTML=(pred.reasons||[]).map(r=>`<span class="rtag ${r.cls}">${r.label}</span>`).join('');
 }
 
-function renderLearnStatus(){
-  const el=document.getElementById('learnStatus');
-  const tot=S.stats.total;
-  if(tot<3){el.innerHTML=`Cần thêm <strong>${3-tot}</strong> lượt phản hồi.`;return;}
-  const ranked=ALGOS.map(a=>({...a,score:S.algoScores[a.id],st:S.algoStats[a.id]}))
-    .sort((a,b)=>b.score-a.score);
-  const top=ranked[0],second=ranked[1];
-  const gap=top.score-second.score;
-  const tt=top.st.ok+top.st.fail;
-  const acc=tt>0?Math.round(top.st.ok/tt*100):null;
-  const conf=gap>80?'Rất cao':gap>40?'Trung bình':'Thấp';
-  const confC=gap>80?'var(--ok)':gap>40?'var(--warn)':'var(--err)';
-  let html=`<div style="margin-bottom:7px">
-    <strong style="color:var(--ok)">🏆 Algo ${top.id} — ${top.name}</strong><br>
-    <span style="color:var(--dim)">Điểm: ${top.score} · ${acc!==null?`Acc: ${acc}% (${tt})`:'Chưa đủ'} · Độ tự tin: <strong style="color:${confC}">${conf}</strong> (gap=${gap})</span>
-  </div>`;
-  if(gap>100) html+=`<div style="color:var(--ok);font-size:.7rem">✅ Algo ${top.id} vượt trội — rất có thể đây là thuật toán của app.</div>`;
-  else if(gap>40) html+=`<div style="color:var(--warn);font-size:.7rem">⏳ Algo ${top.id} đang dẫn. Cần thêm ${Math.max(0,10-tot)} lượt để xác nhận.</div>`;
-  else html+=`<div style="color:var(--err);font-size:.7rem">⚠️ Các algo còn sát nhau. Hãy <strong>nhập dice thực</strong> để học nhanh hơn 3×.</div>`;
-  html+=`<div style="margin-top:6px;font-size:.62rem;color:var(--dim)">Top 3: ${ranked.slice(0,3).map(r=>`${r.id}(${r.score})`).join(' → ')}</div>`;
-  el.innerHTML=html;
+function renderDice(d1,d2,d3,tong,isT,phien){
+  const cls=isT?'tai-c':'xiu-c';
+  ['die1','die2','die3'].forEach((id,i)=>{
+    const el=document.getElementById(id);
+    el.textContent=[d1,d2,d3][i]||'?';
+    el.className='die '+(([d1,d2,d3][i]>0)?cls:'');
+  });
+  document.getElementById('curTong').textContent=tong||'—';
+  const kqEl=document.getElementById('curKQ');
+  kqEl.textContent=isT?'TÀI':'XỈU';
+  kqEl.style.color=isT?'var(--tai)':'var(--xiu)';
+  document.getElementById('curPhien').textContent='#'+phien;
 }
 
-function renderStats(){
-  const s=S.stats;
-  document.getElementById('stT').textContent=s.total;
-  document.getElementById('stO').textContent=s.ok;
-  document.getElementById('stF').textContent=s.fail;
-  document.getElementById('stA').textContent=s.total>0?Math.round(s.ok/s.total*100)+'%':'—';
+function renderSidebar(e,tcTai,tcXiu,ncTai,ncXiu,md5Raw,md5Sys,md5Calc2,verified,phien,nextPhien){
+  document.getElementById('sbPhien').textContent='#'+phien;
+  document.getElementById('sbTime').textContent=e.tick?new Date(e.tick).toLocaleTimeString('vi-VN'):'—';
+  document.getElementById('sbTong').textContent=e.tong||'—';
+  const kqEl=document.getElementById('sbKQ');
+  kqEl.textContent=e.kq; kqEl.style.color=e.isT?'var(--tai)':'var(--xiu)';
+  document.getElementById('sbNext').textContent='#'+nextPhien;
+  updateVolume(tcTai,tcXiu,ncTai,ncXiu);
+  // MD5
+  document.getElementById('md5RawDisp').textContent=md5Raw?md5Raw.slice(0,24)+'…':'—';
+  document.getElementById('md5SysDisp').textContent=md5Sys?md5Sys.slice(0,24)+'…':'—';
+  document.getElementById('md5CalcDisp').textContent=md5Calc2?md5Calc2.slice(0,24)+'…':'—';
+  const badge=document.getElementById('verifyBadge');
+  if(!md5Raw){badge.textContent='N/A';badge.className='verify-badge pending';}
+  else if(!md5Sys){badge.textContent='NO SYS';badge.className='verify-badge pending';}
+  else if(verified){badge.textContent='✅ MATCH';badge.className='verify-badge match';}
+  else{badge.textContent='⚠ MISMATCH';badge.className='verify-badge mismatch';}
+}
+
+function updateVolume(tcTai,tcXiu,ncTai,ncXiu){
+  const tot=tcTai+tcXiu||1;
+  const tp=Math.round(tcTai/tot*100), xp=100-tp;
+  document.getElementById('vbarTai').style.width=tp+'%';
+  document.getElementById('vbarXiu').style.width=xp+'%';
+  document.getElementById('vpctTai').textContent=tp+'%';
+  document.getElementById('vpctXiu').textContent=xp+'%';
+  document.getElementById('ncTai').textContent=fmtNum(ncTai);
+  document.getElementById('ncXiu').textContent=fmtNum(ncXiu);
+  document.getElementById('tcTai').textContent=fmtMoney(tcTai);
+  document.getElementById('tcXiu').textContent=fmtMoney(tcXiu);
+}
+
+function renderPattern(){
+  const recent=S.history.slice(-30);
+  const chain=document.getElementById('patternChain');
+  chain.innerHTML=recent.map(h=>`<div class="pchip ${h.isT?'T':'X'}">${h.isT?'T':'X'}</div>`).join('');
+  const cauR=analyzeCau(recent.map(h=>h.isT?'T':'X'));
+  document.getElementById('patternName').textContent=cauR.name;
+  document.getElementById('patternDesc').textContent=
+    `Tin cậy cầu: ${cauR.conf}% · Gợi ý: ${cauR.next==='TAI'?'TÀI':'XỈU'}`;
+}
+
+function renderMiniChart(){
+  const recent=S.history.slice(-20);
+  const chart=document.getElementById('miniChart');
+  if(!recent.length){chart.innerHTML='';return;}
+  const max=18,min=3,range=max-min;
+  chart.innerHTML=recent.map(h=>{
+    const pct=Math.round(((h.tong-min)/range)*100);
+    const cls=h.isT?'T':'X';
+    return `<div class="mbar ${cls}" style="height:${pct}%" title="${h.phien}: ${h.tong} (${h.kq})"></div>`;
+  }).join('');
+}
+
+function renderSessionStats(){
+  const h=S.history;
+  const taiC=h.filter(x=>x.isT).length;
+  const xiuC=h.length-taiC;
+  document.getElementById('stTotal').textContent=h.length;
+  document.getElementById('stTai').textContent=taiC;
+  document.getElementById('stXiu').textContent=xiuC;
+  // Chuỗi hiện tại
+  let streak=0;
+  if(h.length){
+    const last=h[h.length-1].isT;
+    for(let i=h.length-1;i>=0;i--){
+      if(h[i].isT===last)streak++;else break;
+    }
+  }
+  const sc=document.getElementById('stStreak');
+  sc.textContent=(h.length?((h[h.length-1].isT?'T':'X')+streak):0);
+  sc.style.color=h.length?(h[h.length-1].isT?'var(--tai)':'var(--xiu)'):'var(--txt)';
+}
+
+function renderAlgoStats(){
+  const a=S.algo;
+  document.getElementById('algoTotal').textContent=a.total;
+  document.getElementById('algoOk').textContent=a.ok;
+  document.getElementById('algoAcc').textContent=
+    a.total>0?Math.round(a.ok/a.total*100)+'%':'—';
 }
 
 function renderLog(){
   const tb=document.getElementById('logBody');
-  if(!S.log.length){tb.innerHTML='<tr><td colspan="10" class="lempty">Chưa có dữ liệu</td></tr>';return;}
-  const show=S.log.slice().reverse().slice(0,200);
+  document.getElementById('logCount').textContent=S.log.length;
+  if(!S.log.length){
+    tb.innerHTML='<tr><td colspan="10" class="lempty">Chưa có dữ liệu</td></tr>';return;
+  }
+  const show=S.log.slice().reverse().slice(0,300);
   let html='';
   show.forEach((e,i)=>{
     const n=S.log.length-i;
-    const pc=e.gate==='XOÀI'?'tx':'tt';
-    const ev=e.eval===null?'<span class="tmu">—</span>':e.eval?'<span class="tok2">✅</span>':'<span style="color:var(--err)">❌</span>';
+    const kqC=e.isT?'ct':'cx';
+    const pC=e.predictedNext?( e.predictedNext==='TÀI'?'ct':'cx'):'tmu';
+    const crr=e.correct===null?'<span class="tmu">—</span>':
+      e.correct?'<span class="tok">✅</span>':'<span class="terr">❌</span>';
+    const vBadge=e.md5Raw?
+      (e.verified===true?'<span style="color:var(--ok);font-size:.6rem">✅</span>':
+       e.verified===false?'<span style="color:var(--err);font-size:.6rem">⚠</span>':'<span class="tmu">—</span>')
+      :'<span class="tmu">—</span>';
     html+=`<tr>
-      <td>${n}</td>
-      <td style="font-family:var(--mono);font-size:.6rem">${e.datetime}</td>
-      <td style="font-size:.6rem">${e.src==='manual'?'📋':'🔴'}</td>
-      <td style="font-family:var(--mono)">${(e.md5||'').slice(0,8)}…</td>
-      <td style="font-size:.6rem">${e.id}</td>
-      <td style="font-family:var(--mono)">${e.d1}·${e.d2}·${e.d3}</td>
-      <td>${e.sum}</td>
-      <td class="${pc}">${e.gate}</td>
-      <td>${e.vote?e.vote.conf+'%':'—'}</td>
-      <td>${ev}</td>
+      <td>${e.phien}</td>
+      <td style="font-family:var(--mono);font-size:.6rem">${e.ts||''}</td>
+      <td style="font-family:var(--mono)">${e.d1||'?'}·${e.d2||'?'}·${e.d3||'?'}</td>
+      <td>${e.tong||'—'}</td>
+      <td class="${kqC}">${e.kq}</td>
+      <td>${fmtNum(e.ncTai)} / ${fmtMoney(e.tcTai)}</td>
+      <td>${fmtNum(e.ncXiu)} / ${fmtMoney(e.tcXiu)}</td>
+      <td class="${pC}">${e.predictedNext||'—'}</td>
+      <td>${crr}</td>
+      <td>${vBadge}</td>
     </tr>`;
   });
   tb.innerHTML=html;
-  document.getElementById('logCnt').textContent=S.log.length;
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// FEEDBACK & LEARNING
+// AUTO FETCH LOOP
 // ═══════════════════════════════════════════════════════════════════
-function feedback(correct){
-  if(!S.lockedPred){showToast('⚠ Chưa có dự đoán khóa!');return;}
-  const id=S.lockedPred.md5+'|'+S.lockedPred.datetime;
-  if(id===S.lastFbId){showToast('⚠ Đã đánh giá rồi!');return;}
-  S.lastFbId=id;
-  applyGate(S.lockedPred,correct);
-  S.stats.total++; if(correct)S.stats.ok++; else S.stats.fail++;
-  fillLogEval(S.lockedPred.md5,correct,null);
-  S.lockedPred=null; renderLocked();
-  after(correct,'gate');
+function startFetch(){
+  if(S.fetchTimer) clearInterval(S.fetchTimer);
+  fetchAPI();
+  S.fetchTimer=setInterval(fetchAPI, FETCH_INTERVAL);
 }
-
-function feedbackDice(){
-  if(!S.lockedPred){showToast('⚠ Chưa có dự đoán khóa!');return;}
-  const id=S.lockedPred.md5+'|'+S.lockedPred.datetime;
-  if(id===S.lastFbId){showToast('⚠ Đã đánh giá rồi!');return;}
-  const rd1=parseInt(document.getElementById('rD1').value)||0;
-  const rd2=parseInt(document.getElementById('rD2').value)||0;
-  const rd3=parseInt(document.getElementById('rD3').value)||0;
-  if(rd1<1||rd1>6||rd2<1||rd2>6||rd3<1||rd3>6){showToast('⚠ Nhập đủ 3 dice (1-6)');return;}
-  S.lastFbId=id;
-  const realGate=(rd1+rd2+rd3)<=10?'XOÀI':'TÁO';
-  const correct=realGate===S.lockedPred.gate;
-  applyDice(S.lockedPred.md5,rd1,rd2,rd3,realGate);
-  S.stats.total++; if(correct)S.stats.ok++; else S.stats.fail++;
-  fillLogEval(S.lockedPred.md5,correct,{d1:rd1,d2:rd2,d3:rd3});
-
-  // Hiển thị khớp algo
-  const exact=S.currentResults?S.currentResults.filter(r=>r.d1===rd1&&r.d2===rd2&&r.d3===rd3).map(r=>r.id):[];
-  const gateM=S.currentResults?S.currentResults.filter(r=>r.gate===realGate).map(r=>r.id):[];
-  let info=`Dice thực: ${rd1}·${rd2}·${rd3}=${rd1+rd2+rd3} → <strong>${realGate}</strong>`;
-  if(exact.length) info+=` · ✅ Khớp dice chính xác: <strong>${exact.join(',')}</strong>`;
-  else if(gateM.length) info+=` · ⭕ Khớp cửa: ${gateM.join(',')}`;
-  document.getElementById('diceInfo').innerHTML=info;
-  ['rD1','rD2','rD3'].forEach(x=>document.getElementById(x).value='');
-
-  S.lockedPred=null; renderLocked();
-  after(correct,'dice');
+function stopFetch(){
+  if(S.fetchTimer){ clearInterval(S.fetchTimer); S.fetchTimer=null; }
 }
-
-// Học từ gate only
-function applyGate(lp,correct){
-  if(!S.currentResults) return;
-  S.currentResults.forEach(r=>{
-    const ok=r.gate===lp.gate?correct:!correct;
-    if(ok){S.algoScores[r.id]=Math.min(500,S.algoScores[r.id]+20);S.algoStats[r.id].ok++;}
-    else  {S.algoScores[r.id]=Math.max(5,S.algoScores[r.id]-15);S.algoStats[r.id].fail++;}
-  });
+function toggleAuto(){
+  S.running=!S.running;
+  const btn=document.getElementById('btnFetch');
+  if(S.running){ startFetch(); btn.textContent='⏸ Dừng'; btn.className='btn btn-ok btn-sm'; }
+  else{ stopFetch(); btn.textContent='▶ Chạy'; btn.className='btn btn-sec btn-sm'; setConn('offline','Đã dừng'); }
 }
-
-// Học từ dice thực — phân biệt chính xác vs gate
-function applyDice(md5,rd1,rd2,rd3,realGate){
-  const cur=S.currentResults||runAll(md5);
-  cur.forEach(r=>{
-    const exact=r.d1===rd1&&r.d2===rd2&&r.d3===rd3;
-    const gm=r.gate===realGate;
-    if(exact){S.algoScores[r.id]=Math.min(500,S.algoScores[r.id]+40);S.algoStats[r.id].ok++;}
-    else if(gm){S.algoScores[r.id]=Math.min(500,S.algoScores[r.id]+15);S.algoStats[r.id].ok++;}
-    else{S.algoScores[r.id]=Math.max(5,S.algoScores[r.id]-20);S.algoStats[r.id].fail++;}
-  });
-}
-
-function fillLogEval(md5,correct,rd){
-  for(let i=S.log.length-1;i>=0;i--){
-    if(S.log[i].eval===null&&S.log[i].md5===md5){
-      S.log[i].eval=correct; if(rd) S.log[i].realDice=rd; break;
-    }
-  }
-}
-
-function after(correct,mode){
-  const nb=bestOf(ALGOS.map(a=>({id:a.id,name:a.name,score:S.algoScores[a.id]})));
-  S.bestAlgoId=nb.id;
-  if(S.currentResults)
-    renderAlgoTable(S.currentResults.map(r=>({...r,score:S.algoScores[r.id]})),nb.id);
-  renderLearnStatus(); renderStats(); renderLog(); save();
-  document.getElementById('fbHint').textContent=
-    `#${S.stats.total}: ${correct?'✅ ĐÚNG':'❌ SAI'} [${mode}] · Acc: ${Math.round(S.stats.ok/S.stats.total*100)}% · Dẫn đầu: Algo ${nb.id} (${S.algoScores[nb.id]}pt)`;
-  showToast(correct?'✅ ĐÚNG! Đã cập nhật điểm':'❌ SAI. Đã điều chỉnh trọng số');
+function reconnect(){
+  stopFetch(); S.lastPhien=null;
+  if(S.running) startFetch();
+  else{ S.running=true; startFetch(); document.getElementById('btnFetch').textContent='⏸ Dừng'; document.getElementById('btnFetch').className='btn btn-ok btn-sm'; }
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// RESET LEARNING
+// EXPORT CSV
 // ═══════════════════════════════════════════════════════════════════
-function resetLearn(){
-  ALGOS.forEach(a=>{S.algoScores[a.id]=100;S.algoStats[a.id]={ok:0,fail:0};});
-  if(S.currentResults)
-    renderAlgoTable(S.currentResults.map(r=>({...r,score:100})),null);
-  renderLearnStatus(); save();
-  showToast('🔄 Reset — tất cả algo về 100 điểm');
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// LOCATION & WEATHER — FIX LỖI 2: timeout + fallback rõ ràng
-// ═══════════════════════════════════════════════════════════════════
-function fetchLoc(){
-  setWx('warn','Đang xin quyền vị trí...');
-  if(!navigator.geolocation){setWx('err','Trình duyệt không hỗ trợ. Nhập thủ công.');return;}
-  navigator.geolocation.getCurrentPosition(
-    pos=>{
-      S.lat=pos.coords.latitude; S.lon=pos.coords.longitude;
-      document.getElementById('iLat').value=S.lat.toFixed(6);
-      document.getElementById('iLon').value=S.lon.toFixed(6);
-      setWx('warn',`Tọa độ: ${S.lat.toFixed(4)},${S.lon.toFixed(4)} — đang lấy nhiệt độ...`);
-      fetchWeather(S.lat,S.lon);
-    },
-    err=>{
-      const msg=err.code===1?'Từ chối quyền vị trí.':err.code===3?'Timeout vị trí.':'Lỗi vị trí.';
-      setWx('err',msg+' Nhập thủ công hoặc dùng 30°C.');
-    },
-    {timeout:12000,maximumAge:60000}
-  );
-}
-
-// FIX LỖI 2: timeout riêng cho weather fetch + fallback rõ ràng
-function fetchWeather(lat,lon){
-  const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
-  const ctrl=new AbortController();
-  const timer=setTimeout(()=>{ctrl.abort();setWx('err',`Timeout lấy nhiệt độ. Dùng 30°C.`);},8000);
-  fetch(url,{signal:ctrl.signal})
-    .then(r=>{
-      if(!r.ok) throw new Error('HTTP '+r.status);
-      return r.json();
-    })
-    .then(d=>{
-      clearTimeout(timer);
-      const t=d?.current_weather?.temperature;
-      if(t===undefined||t===null) throw new Error('No temp data');
-      S.temp=t;
-      document.getElementById('iTemp').value=t;
-      setWx('ok',`🌡 ${t}°C · GPS ${lat.toFixed(4)},${lon.toFixed(4)}`);
-      showToast(`✅ Nhiệt độ thực tế: ${t}°C`);
-    })
-    .catch(e=>{
-      clearTimeout(timer);
-      if(e.name==='AbortError') return; // đã xử lý bằng timer
-      setWx('err',`Lỗi lấy nhiệt độ (${e.message}). Dùng 30°C.`);
-      S.temp=30;
-    });
-}
-
-function setWx(t,m){
-  document.getElementById('wxDot').className='dot d'+t;
-  document.getElementById('wxTxt').textContent=m;
-}
-function onGeo(){
-  const la=parseFloat(document.getElementById('iLat').value);
-  const lo=parseFloat(document.getElementById('iLon').value);
-  if(!isNaN(la)&&!isNaN(lo)){S.lat=la;S.lon=lo;}
-}
-function onTemp(){
-  const t=parseFloat(document.getElementById('iTemp').value);
-  if(!isNaN(t)){S.temp=t;setWx('warn','🌡 Thủ công: '+t+'°C');}
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// CSV EXPORT
-// ═══════════════════════════════════════════════════════════════════
-function csvQ(v){const s=String(v??'');return(s.includes(',')||s.includes('"'))?'"'+s.replace(/"/g,'""')+'"':s;}
+function csvQ(v){const s=String(v??'');return(s.includes(',')||s.includes('"')||s.includes('\n'))?'"'+s.replace(/"/g,'""')+'"':s;}
 function exportCSV(){
   if(!S.log.length){showToast('⚠ Chưa có dữ liệu!');return;}
-  const h=['#','Ngày giờ','Nguồn','MD5','Algo','Dice dự đoán','Tổng','Cửa','Tin cậy%','XOÀI đồng thuận','TÁO đồng thuận','Dice thực','Đánh giá'];
-  const rows=S.log.map((e,i)=>[
-    i+1,e.datetime,e.src||'',e.md5||'',`${e.id}-${e.name||''}`,
-    `${e.d1}-${e.d2}-${e.d3}`,e.sum,e.gate,e.vote?.conf||'',e.vote?.xc||'',e.vote?.tc||'',
-    e.realDice?`${e.realDice.d1}-${e.realDice.d2}-${e.realDice.d3}`:'',
-    e.eval===null?'Chưa':e.eval?'Đúng':'Sai'
+  const hdr=['Phiên','Thời gian','Dice1','Dice2','Dice3','Tổng','Kết quả',
+    'Người TÀI','Người XỈU','Tiền TÀI','Tiền XỈU',
+    'Dự đoán kế','Đúng/Sai','MD5 Raw','MD5 Hệ thống','MD5 Tính lại','Xác minh'];
+  const rows=S.log.map(e=>[
+    e.phien,e.ts,e.d1,e.d2,e.d3,e.tong,e.kq,
+    e.ncTai,e.ncXiu,e.tcTai,e.tcXiu,
+    e.predictedNext||'',
+    e.correct===null?'':e.correct?'Đúng':'Sai',
+    e.md5Raw,e.md5Sys,e.md5Calc,
+    e.verified===true?'MATCH':e.verified===false?'MISMATCH':'N/A'
   ].map(csvQ).join(','));
-  const csv='\uFEFF'+[h.join(','),...rows].join('\r\n');
+  const csv='\uFEFF'+[hdr.join(','),...rows].join('\r\n');
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
-  a.download='xucxac_v5_'+fmtFile()+'.csv'; a.click();
-  showToast('📥 CSV — '+S.log.length+' dòng');
+  a.download='taixiu_log_'+fmtFile()+'.csv'; a.click();
+  showToast('📥 Đã xuất '+S.log.length+' phiên');
+}
+
+function resetStats(){
+  S.algo={total:0,ok:0};
+  renderAlgoStats();
+  save();
+  showToast('🔄 Reset thống kê thuật toán');
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// SECTION TOGGLE
+// UTILS
 // ═══════════════════════════════════════════════════════════════════
-function toggleSec(bId,hId){
-  const b=document.getElementById(bId),h=document.getElementById(hId);
-  b.classList.toggle('open'); h.classList.toggle('open',b.classList.contains('open'));
+function fmtNum(n){ return n?n.toLocaleString('vi-VN'):'0'; }
+function fmtMoney(n){
+  if(!n||n<1000) return n||'0';
+  if(n>=1e9) return (n/1e9).toFixed(1)+'B';
+  if(n>=1e6) return (n/1e6).toFixed(1)+'M';
+  if(n>=1e3) return (n/1e3).toFixed(1)+'K';
+  return String(n);
 }
+function pad(n){return String(n).padStart(2,'0')}
+function fmtFile(){const d=new Date();return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'_'+pad(d.getHours())+pad(d.getMinutes())}
 
-// ═══════════════════════════════════════════════════════════════════
-// TOAST
-// ═══════════════════════════════════════════════════════════════════
 let toastT=null;
 function showToast(m){
   const t=document.getElementById('toast');
@@ -946,34 +1008,13 @@ function showToast(m){
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// UTILS
+// INIT
 // ═══════════════════════════════════════════════════════════════════
-function pad(n){return String(n).padStart(2,'0')}
-function pad3(n){return String(n).padStart(3,'0')}
-function fmtDT(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())}
-function fmtFile(){const d=new Date();return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'_'+pad(d.getHours())+pad(d.getMinutes())}
-
-// ═══════════════════════════════════════════════════════════════════
-// INIT — FIX LỖI 7: kiểm tra CryptoJS
-// ═══════════════════════════════════════════════════════════════════
-(function init(){
-  // Thử load CryptoJS
-  const script=document.createElement('script');
-  script.src='https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js';
-  script.onload=()=>{ useCryptoJS=true; };
-  script.onerror=()=>{
-    useCryptoJS=false;
-    document.getElementById('cryptoWarn').style.display='block';
-  };
-  document.head.appendChild(script);
-
-  load();
-  renderStats();
-  renderLog();
-  renderLocked();
-  renderLearnStatus();
-  fetchLoc(); // tự động lấy vị trí + nhiệt độ
-})();
+loadPersist();
+renderLog();
+renderAlgoStats();
+renderSessionStats();
+startFetch();
 </script>
 </body>
 </html>
