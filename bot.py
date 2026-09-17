@@ -19,9 +19,10 @@ from telegram.ext import (
     Application, CommandHandler, MessageHandler,
     CallbackQueryHandler, filters, ContextTypes
 )
+from telegram.request import HTTPXRequest
 
 # ═══════════════════════════════════════════════════════════
-#  CẤU HÌNH & HẰNG SỐ
+#  CẤU HÌNH & HẰNG SỐ (ĐÃ ĐIỀN SẴN TOKEN VÀ ADMIN ID)
 # ═══════════════════════════════════════════════════════════
 
 logging.basicConfig(
@@ -30,12 +31,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN   = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+# Điền trực tiếp cấu hình của bạn
+BOT_TOKEN   = "8931512528:AAE9CC1Kw_xRF06QYJkQi6Su60dA7I0cDlQ"
 ADMIN_ID    = 8284419367
+
 PORT        = int(os.environ.get("PORT", 5000))
 RENDER_URL  = os.environ.get("RENDER_EXTERNAL_URL", "")
-WEBHOOK_PATH = f"/webhook/{BOT_TOKEN}" if BOT_TOKEN else "/webhook"
-WEBHOOK_URL  = f"{RENDER_URL}{WEBHOOK_PATH}"
+WEBHOOK_PATH = f"/webhook/{BOT_TOKEN}"
+WEBHOOK_URL  = f"{RENDER_URL}{WEBHOOK_PATH}" if RENDER_URL else ""
 
 # Đường dẫn file dữ liệu
 DATA_DIR      = os.path.join(os.path.dirname(__file__), "data")
@@ -229,7 +232,7 @@ def get_all_keys() -> list:
     return result
 
 # ═══════════════════════════════════════════════════════════
-#  ENGINE PHÂN TÍCH MD5
+#  ENGINE PHÂN TÍCH MD5 (GIỮ NGUYÊN 100% THUẬT TOÁN)
 # ═══════════════════════════════════════════════════════════
 
 def _hex_to_bytes(md5: str) -> list[int]:
@@ -634,7 +637,7 @@ async def message_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("💡 Dùng /start để mở menu.", reply_markup=main_menu(uid))
 
 # ═══════════════════════════════════════════════════════════
-#  FLASK WEB SERVER & RUNNER
+#  FLASK WEB SERVER & RUNNER (FIX LỖI TIMEDOUT)
 # ═══════════════════════════════════════════════════════════
 
 flask_app = Flask(__name__)
@@ -651,19 +654,31 @@ def health():
 
 @flask_app.route(WEBHOOK_PATH, methods=["POST"])
 def webhook():
-    """Route xử lý đồng bộ để tránh lỗi Async của Flask"""
     if _telegram_app is None or _loop is None:
         return Response("Not ready", status=503)
     
     data = request.get_json(force=True)
     update = Update.de_json(data, _telegram_app.bot)
     
-    # Đẩy tác vụ xử lý update vào event loop đang chạy ngầm
     asyncio.run_coroutine_threadsafe(_telegram_app.process_update(update), _loop)
     return Response("ok", status=200)
 
 def build_application() -> Application:
-    app = Application.builder().token(BOT_TOKEN).updater(None).build()
+    # Tăng thời gian chờ (Timeout 60s) để fix triệt để lỗi TimedOut trên Render
+    t_request = HTTPXRequest(
+        connect_timeout=60.0,
+        read_timeout=60.0,
+        write_timeout=60.0,
+        pool_timeout=60.0
+    )
+
+    app = (
+        Application.builder()
+        .token(BOT_TOKEN)
+        .request(t_request)
+        .updater(None)
+        .build()
+    )
 
     app.add_handler(CommandHandler("start",    cmd_start))
     app.add_handler(CommandHandler("huongdan", cmd_huongdan))
@@ -678,18 +693,28 @@ def build_application() -> Application:
 async def setup_webhook(app: Application):
     await app.initialize()
     if RENDER_URL:
-        await app.bot.set_webhook(
-            url=WEBHOOK_URL,
-            allowed_updates=["message", "callback_query"],
-            drop_pending_updates=True,
-        )
-        logger.info(f"✅ Webhook set: {WEBHOOK_URL}")
+        # Thử lại 3 lần nếu thiết lập Webhook bị gián đoạn mạng
+        for attempt in range(3):
+            try:
+                await app.bot.set_webhook(
+                    url=WEBHOOK_URL,
+                    allowed_updates=["message", "callback_query"],
+                    drop_pending_updates=True,
+                )
+                logger.info(f"✅ Webhook set thành công: {WEBHOOK_URL}")
+                break
+            except Exception as e:
+                logger.warning(f"⚠️ Thử thiết lập Webhook thất bại ({attempt+1}/3): {e}")
+                await asyncio.sleep(3)
     
     await app.start()
-    await app.bot.set_my_commands([
-        BotCommand("start",    "Mở menu chính"),
-        BotCommand("huongdan", "Hướng dẫn sử dụng"),
-    ])
+    try:
+        await app.bot.set_my_commands([
+            BotCommand("start",    "Mở menu chính"),
+            BotCommand("huongdan", "Hướng dẫn sử dụng"),
+        ])
+    except Exception as e:
+        logger.warning(f"Không thể đặt menu lệnh: {e}")
 
 def run_loop(loop, app):
     asyncio.set_event_loop(loop)
@@ -699,15 +724,9 @@ def run_loop(loop, app):
 def main():
     global _telegram_app, _loop
 
-    if not BOT_TOKEN:
-        raise RuntimeError("❌ TELEGRAM_BOT_TOKEN chưa được đặt!")
-    if ADMIN_ID == 0:
-        raise RuntimeError("❌ ADMIN_ID chưa được đặt!")
-
     _telegram_app = build_application()
     _loop = asyncio.new_event_loop()
 
-    # Chạy asyncio loop trên 1 thread riêng biệt
     t = threading.Thread(target=run_loop, args=(_loop, _telegram_app), daemon=True)
     t.start()
 
