@@ -31,7 +31,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 BOT_TOKEN   = os.environ.get("8931512528:AAE9CC1Kw_xRFO6QYJkQI6Su60dA7I0cDlQ", "")
-ADMIN_ID    = 8284419367 int(os.environ.get("ADMIN_ID", "0"))
+ADMIN_ID    = 8284419367
 PORT        = int(os.environ.get("PORT", 5000))
 RENDER_URL  = os.environ.get("RENDER_EXTERNAL_URL", "")
 WEBHOOK_PATH = f"/webhook/{BOT_TOKEN}" if BOT_TOKEN else "/webhook"
