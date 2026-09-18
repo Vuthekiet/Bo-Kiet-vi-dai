@@ -1,737 +1,910 @@
-import os
-import json
-import math
-import secrets
+"""
+╔══════════════════════════════════════════════════════════════════╗
+║          BOT PHÂN TÍCH XÚC XẮC MD5 - BoKietvidai v3.0          ║
+║  Flask (Main Thread) + Telegram Bot (Daemon Thread) cho Render   ║
+╚══════════════════════════════════════════════════════════════════╝
+"""
+
+# ═══════════════════════════════════════════════════════════════════
+# 0. CẤU HÌNH CHÍNH
+# ═══════════════════════════════════════════════════════════════════
+TELEGRAM_BOT_TOKEN: str = "8931512528:AAE9CC1Kw_xRFO6QYJkQI6Su60dA7I0cDlQ"
+ADMIN_ID: int = 8284419367
+
+# ═══════════════════════════════════════════════════════════════════
+# 1. IMPORT
+# ═══════════════════════════════════════════════════════════════════
+import asyncio
 import hashlib
 import logging
+import math
+import os
+import re
+import secrets
+import sqlite3
+import sys
 import threading
-import asyncio
-from datetime import datetime, timedelta
+import time
 from collections import Counter
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from flask import Flask, request, Response
+import nest_asyncio
+from flask import Flask
+
 from telegram import (
-    Update, InlineKeyboardButton, InlineKeyboardMarkup,
-    BotCommand
+    BotCommand,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Update,
 )
+from telegram.constants import ParseMode
 from telegram.ext import (
-    Application, CommandHandler, MessageHandler,
-    CallbackQueryHandler, filters, ContextTypes
+    Application,
+    CallbackQueryHandler,
+    CommandHandler,
+    ContextTypes,
+    ConversationHandler,
+    MessageHandler,
+    filters,
 )
-from telegram.request import HTTPXRequest
 
-# ═══════════════════════════════════════════════════════════
-#  CẤU HÌNH & HẰNG SỐ (ĐÃ ĐIỀN SẴN TOKEN VÀ ADMIN ID)
-# ═══════════════════════════════════════════════════════════
-
+# ═══════════════════════════════════════════════════════════════════
+# 2. LOGGING
+# ═══════════════════════════════════════════════════════════════════
 logging.basicConfig(
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-    level=logging.INFO
+    format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+    level=logging.INFO,
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler("bokiet.log", encoding="utf-8"),
+    ],
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("BoKiet")
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("telegram").setLevel(logging.WARNING)
 
-# Điền trực tiếp cấu hình của bạn
-BOT_TOKEN   = "8931512528:AAE9CC1Kw_xRF06QYJkQi6Su60dA7I0cDlQ"
-ADMIN_ID    = 8284419367
+# ═══════════════════════════════════════════════════════════════════
+# 3. FLASK APP — chạy trên Main Thread, Render Health Check
+# ═══════════════════════════════════════════════════════════════════
+app = Flask(__name__)
 
-PORT        = int(os.environ.get("PORT", 5000))
-RENDER_URL  = os.environ.get("RENDER_EXTERNAL_URL", "")
-WEBHOOK_PATH = f"/webhook/{BOT_TOKEN}"
-WEBHOOK_URL  = f"{RENDER_URL}{WEBHOOK_PATH}" if RENDER_URL else ""
 
-# Đường dẫn file dữ liệu
-DATA_DIR      = os.path.join(os.path.dirname(__file__), "data")
-USERS_FILE    = os.path.join(DATA_DIR, "users.json")
-KEYS_FILE     = os.path.join(DATA_DIR, "keys.json")
-FEEDBACK_FILE = os.path.join(DATA_DIR, "feedback.json")
-WEIGHTS_FILE  = os.path.join(DATA_DIR, "weights.json")
+@app.route("/")
+def index():
+    return "Bot is running!", 200
 
-KEY_PREFIX = "BoKietvidai-"
 
-# ═══════════════════════════════════════════════════════════
-#  TẦNG DỮ LIỆU (JSON PERSISTENCE)
-# ═══════════════════════════════════════════════════════════
+@app.route("/health")
+def health():
+    return "Bot is running!", 200
 
-_lock = threading.Lock()
 
-def _ensure_data_dir():
-    os.makedirs(DATA_DIR, exist_ok=True)
+# ═══════════════════════════════════════════════════════════════════
+# 4. DATABASE — SQLite với Lock chống race condition
+# ═══════════════════════════════════════════════════════════════════
+DB_PATH = "bokiet.db"
+_db_lock = threading.Lock()
 
-def _load(path: str, default):
-    _ensure_data_dir()
-    if not os.path.exists(path):
-        return default
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (json.JSONDecodeError, IOError):
-        return default
 
-def _save(path: str, data):
-    _ensure_data_dir()
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    os.replace(tmp, path)
+def _get_conn() -> sqlite3.Connection:
+    """Trả về connection SQLite an toàn đa luồng."""
+    return sqlite3.connect(DB_PATH, check_same_thread=False)
 
-def load_users()    -> dict: return _load(USERS_FILE, {})
-def load_keys()     -> dict: return _load(KEYS_FILE, {})
-def load_feedback() -> list: return _load(FEEDBACK_FILE, [])
-def load_weights()  -> dict:
-    default = {"bias": 0.5, "ema_alpha": 0.15, "total": 0, "correct": 0}
-    return _load(WEIGHTS_FILE, default)
 
-def save_users(d):    _save(USERS_FILE, d)
-def save_keys(d):     _save(KEYS_FILE, d)
-def save_feedback(d): _save(FEEDBACK_FILE, d)
-def save_weights(d):  _save(WEIGHTS_FILE, d)
+def db_init() -> None:
+    """Tạo tất cả bảng nếu chưa có."""
+    with _db_lock, _get_conn() as conn:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS keys (
+                key_code        TEXT PRIMARY KEY,
+                duration_label  TEXT NOT NULL,
+                expires_at      REAL,
+                activated_by    INTEGER,
+                activated_at    REAL,
+                created_at      REAL NOT NULL
+            );
 
-# ═══════════════════════════════════════════════════════════
-#  QUẢN LÝ KEY & USER
-# ═══════════════════════════════════════════════════════════
+            CREATE TABLE IF NOT EXISTS users (
+                user_id         INTEGER PRIMARY KEY,
+                active_key      TEXT,
+                key_expires_at  REAL
+            );
 
-DURATION_MAP = {
-    "1d":  timedelta(days=1),
-    "3d":  timedelta(days=3),
-    "7d":  timedelta(days=7),
-    "1m":  timedelta(days=30),
-    "1y":  timedelta(days=365),
-    "inf": None,
-}
-DURATION_LABEL = {
-    "1d": "1 ngày", "3d": "3 ngày", "7d": "7 ngày",
-    "1m": "1 tháng", "1y": "1 năm", "inf": "Vĩnh viễn",
-}
+            CREATE TABLE IF NOT EXISTS feedback (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id         INTEGER NOT NULL,
+                md5_input       TEXT NOT NULL,
+                prediction      TEXT NOT NULL,
+                is_correct      INTEGER NOT NULL,
+                timestamp_seed  TEXT NOT NULL,
+                created_at      REAL NOT NULL
+            );
 
-def generate_key() -> str:
-    rand = secrets.token_urlsafe(16)
-    return KEY_PREFIX + rand
+            CREATE TABLE IF NOT EXISTS bias_weights (
+                bucket          TEXT PRIMARY KEY,
+                weight          REAL NOT NULL DEFAULT 0.0,
+                total_feedback  INTEGER NOT NULL DEFAULT 0
+            );
+        """)
+        conn.commit()
+    logger.info("✅ Database sẵn sàng: %s", DB_PATH)
 
-def create_key(duration_code: str) -> str:
-    with _lock:
-        keys = load_keys()
-        key = generate_key()
-        now = datetime.utcnow()
-        delta = DURATION_MAP.get(duration_code)
-        expiry = (now + delta).isoformat() if delta else "infinity"
-        keys[key] = {
-            "created_at": now.isoformat(),
-            "duration":   duration_code,
-            "expiry":     expiry,
-            "used_by":    None,
-            "active":     True,
-        }
-        save_keys(keys)
-    return key
 
-def activate_key(user_id: int, key_str: str) -> tuple[bool, str]:
-    with _lock:
-        keys  = load_keys()
-        users = load_users()
-        uid   = str(user_id)
+# ──────────────────── KEY helpers ────────────────────
 
-        if key_str not in keys:
-            return False, "❌ Key không tồn tại."
+def _calc_expires_from_label(label: str) -> Optional[float]:
+    """Tính Unix timestamp hết hạn từ nhãn, bắt đầu từ NOW (lúc kích hoạt)."""
+    mapping = {
+        "1 ngày":    timedelta(days=1),
+        "3 ngày":    timedelta(days=3),
+        "7 ngày":    timedelta(days=7),
+        "1 tháng":   timedelta(days=30),
+        "1 năm":     timedelta(days=365),
+        "Vĩnh viễn": None,
+    }
+    delta = mapping.get(label)
+    if delta is None:
+        return None
+    return (datetime.now(timezone.utc) + delta).timestamp()
 
-        k = keys[key_str]
 
-        if not k.get("active", True):
-            return False, "❌ Key đã bị thu hồi."
+def db_create_key(label: str) -> str:
+    """Sinh key mới, lưu DB, trả về chuỗi key."""
+    key_code = f"BoKietvidai-{secrets.token_hex(8).upper()}"
+    with _db_lock, _get_conn() as conn:
+        conn.execute(
+            "INSERT INTO keys (key_code, duration_label, expires_at, created_at) VALUES (?, ?, ?, ?)",
+            (key_code, label, None, time.time()),
+        )
+        conn.commit()
+    return key_code
 
-        if k["used_by"] is not None and k["used_by"] != uid:
-            return False, "❌ Key này đã được sử dụng bởi người khác."
 
-        if k["expiry"] != "infinity":
-            exp = datetime.fromisoformat(k["expiry"])
-            if datetime.utcnow() > exp:
-                return False, "❌ Key đã hết hạn."
+def db_activate_key(key_code: str, user_id: int) -> dict:
+    """Kích hoạt key cho user. Trả về {"ok": bool, "msg": str, "expires_at": float|None}."""
+    with _db_lock, _get_conn() as conn:
+        row = conn.execute(
+            "SELECT duration_label, expires_at, activated_by FROM keys WHERE key_code=?",
+            (key_code,),
+        ).fetchone()
 
-        k["used_by"] = uid
-        keys[key_str] = k
+        if row is None:
+            return {"ok": False, "msg": "❌ Key không tồn tại!"}
 
-        users[uid] = {
-            "user_id":      user_id,
-            "key":          key_str,
-            "key_expiry":   k["expiry"],
-            "activated_at": datetime.utcnow().isoformat(),
-            "state":        None,
-        }
-        save_keys(keys)
-        save_users(users)
+        label, expires_at, activated_by = row
 
-        label = DURATION_LABEL.get(k["duration"], k["duration"])
-        return True, f"✅ Kích hoạt thành công! Hạn sử dụng: *{label}*"
+        # Key đã dùng bởi người khác
+        if activated_by is not None and activated_by != user_id:
+            return {"ok": False, "msg": "❌ Key này đã được người khác sử dụng!"}
 
-def check_user_access(user_id: int) -> tuple[bool, str]:
+        # Key đã hết hạn (lần kích hoạt đầu chưa xảy ra nên expires_at = None ở giai đoạn này)
+        if expires_at is not None and time.time() > expires_at:
+            return {"ok": False, "msg": "⏰ Key đã hết hạn!"}
+
+        now = time.time()
+        # Lần kích hoạt đầu: tính expires từ bây giờ
+        if activated_by is None:
+            expires_at = _calc_expires_from_label(label)
+            conn.execute(
+                "UPDATE keys SET activated_by=?, activated_at=?, expires_at=? WHERE key_code=?",
+                (user_id, now, expires_at, key_code),
+            )
+
+        conn.execute(
+            "INSERT OR REPLACE INTO users (user_id, active_key, key_expires_at) VALUES (?,?,?)",
+            (user_id, key_code, expires_at),
+        )
+        conn.commit()
+
+    return {"ok": True, "msg": "✅ Kích hoạt thành công!", "expires_at": expires_at}
+
+
+def db_check_access(user_id: int) -> dict:
+    """Kiểm tra quyền dùng MD5. Admin luôn có quyền."""
     if user_id == ADMIN_ID:
-        return True, "admin"
-        
-    users = load_users()
-    uid   = str(user_id)
+        return {"ok": True, "msg": "admin"}
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT active_key, key_expires_at FROM users WHERE user_id=?",
+            (user_id,),
+        ).fetchone()
+    if not row or not row[0]:
+        return {"ok": False, "msg": "no_key"}
+    if row[1] is not None and time.time() > row[1]:
+        return {"ok": False, "msg": "expired"}
+    return {"ok": True, "msg": "active", "expires_at": row[1]}
 
-    if uid not in users:
-        return False, "no_key"
 
-    u = users[uid]
-    exp = u.get("key_expiry", "infinity")
-    if exp == "infinity":
-        return True, "ok"
+def db_get_user_key_info(user_id: int) -> Optional[dict]:
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT active_key, key_expires_at FROM users WHERE user_id=?",
+            (user_id,),
+        ).fetchone()
+    return {"key": row[0], "expires_at": row[1]} if row else None
 
-    keys = load_keys()
-    key  = u.get("key", "")
-    if key and not keys.get(key, {}).get("active", True):
-        return False, "revoked"
 
-    if datetime.utcnow() > datetime.fromisoformat(exp):
-        return False, "expired"
+# ──────────────────── FEEDBACK / BIAS helpers ────────────────────
 
-    return True, "ok"
+def db_save_feedback(user_id: int, md5_input: str, prediction: str,
+                     is_correct: bool, ts_seed: str) -> None:
+    bucket = _bias_bucket(md5_input)
+    with _db_lock, _get_conn() as conn:
+        conn.execute(
+            "INSERT INTO feedback (user_id,md5_input,prediction,is_correct,timestamp_seed,created_at)"
+            " VALUES (?,?,?,?,?,?)",
+            (user_id, md5_input, prediction, int(is_correct), ts_seed, time.time()),
+        )
+        # Cập nhật bias weight cho bucket
+        sign = 1.0 if is_correct else -1.0
+        conn.execute("""
+            INSERT INTO bias_weights (bucket, weight, total_feedback) VALUES (?,?,1)
+            ON CONFLICT(bucket) DO UPDATE SET
+                weight = weight + ?,
+                total_feedback = total_feedback + 1
+        """, (bucket, sign, sign))
+        conn.commit()
 
-def revoke_key(key_str: str) -> tuple[bool, str]:
-    with _lock:
-        keys = load_keys()
-        if key_str not in keys:
-            return False, "Key không tồn tại."
-        keys[key_str]["active"] = False
-        save_keys(keys)
-        return True, f"✅ Đã thu hồi key thành công."
 
-def get_all_active_users() -> list:
-    users = load_users()
-    keys  = load_keys()
-    result = []
-    for uid, u in users.items():
-        exp  = u.get("key_expiry", "infinity")
-        key  = u.get("key", "")
-        revoked = not keys.get(key, {}).get("active", True)
-        if revoked:
-            status = "🔴 Bị thu hồi"
-        elif exp == "infinity":
-            status = "🟢 Vĩnh viễn"
-        elif datetime.utcnow() > datetime.fromisoformat(exp):
-            status = "🟡 Hết hạn"
-        else:
-            status = f"🟢 Còn hạn → {exp[:10]}"
-        result.append({"uid": uid, "status": status, "key": key[:20] + "..."})
-    return result
+def db_get_bias(md5_input: str) -> float:
+    """Trả về bias weight của bucket MD5 này (-∞..+∞, dương = ủng hộ dự đoán gốc)."""
+    bucket = _bias_bucket(md5_input)
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT weight, total_feedback FROM bias_weights WHERE bucket=?",
+            (bucket,),
+        ).fetchone()
+    if not row or row[1] == 0:
+        return 0.0
+    # Chuẩn hóa: trả về weight/total để scale [-1, 1]
+    return row[0] / row[1]
 
-def get_all_keys() -> list:
-    keys = load_keys()
-    result = []
-    for k, v in keys.items():
-        active  = v.get("active", True)
-        used_by = v.get("used_by", "Chưa dùng") or "Chưa dùng"
-        expiry  = v.get("expiry", "?")[:10] if v.get("expiry") != "infinity" else "Vĩnh viễn"
-        result.append({
-            "key":    k[:28] + "...",
-            "active": "✅" if active else "❌",
-            "used":   used_by,
-            "expiry": expiry,
-        })
-    return result
 
-# ═══════════════════════════════════════════════════════════
-#  ENGINE PHÂN TÍCH MD5 (GIỮ NGUYÊN 100% THUẬT TOÁN)
-# ═══════════════════════════════════════════════════════════
+def _bias_bucket(md5_input: str) -> str:
+    """Gom MD5 vào bucket theo 2 ký tự đầu (256 bucket) để học pattern."""
+    return md5_input[:2].lower()
 
-def _hex_to_bytes(md5: str) -> list[int]:
-    return [int(md5[i:i+2], 16) for i in range(0, 32, 2)]
 
-def _shannon_entropy(data: list[int]) -> float:
-    n = len(data)
-    counts = Counter(data)
-    return -sum((c/n) * math.log2(c/n) for c in counts.values() if c > 0)
+# ═══════════════════════════════════════════════════════════════════
+# 5. THUẬT TOÁN LÕI — MD5 + Timestamp Seed + Adaptive Bias
+# ═══════════════════════════════════════════════════════════════════
 
-def _block_entropy(md5: str) -> list[float]:
-    result = []
-    for i in range(4):
-        block = md5[i*8:(i+1)*8]
-        bvals = [int(block[j:j+2], 16) for j in range(0, 8, 2)]
-        result.append(_shannon_entropy(bvals))
-    return result
+def _shannon_entropy(data: bytes) -> float:
+    if not data:
+        return 0.0
+    freq = Counter(data)
+    total = len(data)
+    return -sum((c / total) * math.log2(c / total) for c in freq.values())
 
-def _positional_weighted_sum(bts: list[int]) -> int:
-    fibs = [1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987]
-    return sum(b * fibs[i % 16] for i, b in enumerate(bts))
 
-def _simulate_dice(bts: list[int]) -> list[int]:
-    rolls = []
-    for i in range(10):
-        b0 = bts[(i*3)     % 16]
-        b1 = bts[(i*3 + 1) % 16]
-        b2 = bts[(i*3 + 2) % 16]
-        b0 = b0 ^ bts[i % 16]
-        total = (b0 % 6 + 1) + (b1 % 6 + 1) + (b2 % 6 + 1)
-        rolls.append(total)
-    return rolls
+def _bitwise_score(seed_bytes: bytes) -> float:
+    """
+    Bitwise feature: tỷ lệ bit 1 trong seed.
+    > 0.5 → thiên về TÁO, < 0.5 → thiên về XOÀI.
+    """
+    total_bits = len(seed_bytes) * 8
+    set_bits = sum(bin(b).count("1") for b in seed_bytes)
+    return set_bits / total_bits
 
-def extract_features(md5: str) -> dict:
-    md5 = md5.lower().strip()
-    bts = _hex_to_bytes(md5)
 
-    f1_entropy = _shannon_entropy(bts)
-    even_sum = sum(bts[i] for i in range(0, 16, 2))
-    odd_sum  = sum(bts[i] for i in range(1, 16, 2))
-    f2_ratio = even_sum / (odd_sum + 1e-9)
+def analyze_md5(md5_hex: str) -> dict:
+    """
+    Thuật toán phân tích 5 lớp:
+    1. Seed = MD5 + Timestamp (giây) → ổn định trong cùng giây
+    2. Hash Seed bằng SHA-256 → 32 bytes
+    3. Mô phỏng 10 lượt tung 3 xúc xắc (dùng mod 6)
+    4. Bitwise score + Shannon Entropy làm tín hiệu phụ
+    5. Adaptive Bias từ lịch sử phản hồi điều chỉnh confidence
+    """
+    # Timestamp theo giây — cố định Seed trong khung 1 giây
+    ts_seed = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    xor_val = 0
-    for b in bts:
-        xor_val ^= b
-    f3_xor = xor_val / 255.0
+    # ── Bước 1–2: Seed tổng hợp ──
+    seed_raw = f"{md5_hex.lower()}|{ts_seed}"
+    seed_hash = hashlib.sha256(seed_raw.encode()).digest()   # 32 bytes
 
-    blk = _block_entropy(md5)
-    f4_block_ratio = blk[-1] / (blk[0] + 1e-9)
-    f5_pws = (_positional_weighted_sum(bts) % 11) / 10.0
+    # ── Bước 3: Mô phỏng xúc xắc ──
+    scores = []
+    for i in range(0, 30, 3):
+        d1 = (seed_hash[i]     % 6) + 1
+        d2 = (seed_hash[i + 1] % 6) + 1
+        d3 = (seed_hash[i + 2] % 6) + 1
+        scores.append(d1 + d2 + d3)   # 10 lượt tung
 
-    dice_rolls = _simulate_dice(bts)
-    xoai_count = sum(1 for r in dice_rolls if r <= 10)
-    f6_dice_ratio = xoai_count / 10.0
+    xoai = sum(1 for s in scores if s <= 10)
+    tao  = sum(1 for s in scores if s >= 11)
 
-    return {
-        "entropy":      f1_entropy,
-        "even_odd":     f2_ratio,
-        "xor_norm":     f3_xor,
-        "block_ratio":  f4_block_ratio,
-        "pws_norm":     f5_pws,
-        "dice_ratio":   f6_dice_ratio,
-        "dice_rolls":   dice_rolls,
-        "xoai_count":   xoai_count,
-        "tao_count":    10 - xoai_count,
-    }
+    # ── Bước 4: Bitwise + Entropy ──
+    bit_score = _bitwise_score(seed_hash)      # 0..1
+    entropy   = _shannon_entropy(seed_hash)    # 0..8 bits
 
-def predict(md5: str) -> dict:
-    feats   = extract_features(md5)
-    weights = load_weights()
-    bias    = weights.get("bias", 0.5)
+    # bit_score > 0.5 ủng hộ TÁO, < 0.5 ủng hộ XOÀI
+    bit_signal = (bit_score - 0.5) * 2        # -1..+1
 
-    s1 = 0.5
-    s2 = 1.0 if feats["even_odd"] > 1.02 else (0.0 if feats["even_odd"] < 0.98 else 0.5)
-    s3 = feats["xor_norm"]
-    s4 = 1.0 if feats["block_ratio"] > 1.1 else (0.0 if feats["block_ratio"] < 0.9 else 0.5)
-    s5 = feats["pws_norm"]
-    s6 = feats["dice_ratio"]
+    # ── Bước 5: Raw confidence từ dice ──
+    total = xoai + tao or 1
+    raw_xoai_pct = xoai / total              # 0..1
 
-    W = [0.05, 0.15, 0.20, 0.10, 0.15, 0.35]
-    raw_score = (
-        W[0]*s1 + W[1]*s2 + W[2]*s3 +
-        W[3]*s4 + W[4]*s5 + W[5]*s6
-    )
+    # Kết hợp dice + bitwise (trọng số 80/20)
+    combined = 0.80 * raw_xoai_pct + 0.20 * (1 - (bit_signal + 1) / 2)
 
-    adjustment = (bias - 0.5) * 0.3
-    final_score = max(0.01, min(0.99, raw_score - adjustment))
+    # ── Bước 5b: Adaptive Bias ──
+    bias = db_get_bias(md5_hex)              # -1..+1
+    # bias dương → tăng xác suất dự đoán gốc; âm → giảm
+    bias_factor = 0.05 * bias               # tối đa ±5% ảnh hưởng
+    combined = max(0.0, min(1.0, combined + bias_factor))
 
-    prediction = "XOÀI" if final_score >= 0.5 else "TÁO"
-    confidence = final_score if prediction == "XOÀI" else (1 - final_score)
-    confidence_pct = round(confidence * 100, 1)
-
-    total   = weights.get("total", 0)
-    correct = weights.get("correct", 0)
-    acc     = round(correct / total * 100, 1) if total > 0 else 0.0
+    if combined > 0.5:
+        prediction = "🍊 XOÀI"
+        confidence = round(combined * 100, 2)
+    elif combined < 0.5:
+        prediction = "🍎 TÁO"
+        confidence = round((1 - combined) * 100, 2)
+    else:
+        # Tie-breaker: byte cuối cùng
+        prediction = "🍊 XOÀI" if seed_hash[31] % 2 == 0 else "🍎 TÁO"
+        confidence = 50.0
 
     return {
-        "md5":          md5,
-        "prediction":   prediction,
-        "confidence":   confidence_pct,
-        "raw_score":    round(raw_score, 4),
-        "final_score":  round(final_score, 4),
-        "entropy":      round(feats["entropy"], 4),
-        "dice_rolls":   feats["dice_rolls"],
-        "xoai_count":   feats["xoai_count"],
-        "tao_count":    feats["tao_count"],
-        "total_pred":   total,
-        "accuracy":     acc,
+        "prediction":  prediction,
+        "confidence":  confidence,
+        "entropy":     round(entropy, 4),
+        "bit_score":   round(bit_score * 100, 2),
+        "bias":        round(bias * 100, 2),
+        "xoai_count":  xoai,
+        "tao_count":   tao,
+        "ts_seed":     ts_seed,
+        "seed_preview": seed_hash.hex()[:12] + "...",
     }
 
-def update_weights(prediction: str, is_correct: bool):
-    with _lock:
-        w = load_weights()
-        alpha = w.get("ema_alpha", 0.15)
 
-        w["total"]   = w.get("total", 0) + 1
-        w["correct"] = w.get("correct", 0) + (1 if is_correct else 0)
+# ═══════════════════════════════════════════════════════════════════
+# 6. CONVERSATION STATES & IN-MEMORY FEEDBACK STORE
+# ═══════════════════════════════════════════════════════════════════
+S_MD5  = 1
+S_KEY  = 2
+S_TIER = 3
 
-        if not is_correct:
-            actual_is_xoai = (prediction == "TÁO")
-        else:
-            actual_is_xoai = (prediction == "XOÀI")
+# Lưu context phản hồi: key = f"{user_id}_{message_id}"
+# value = {"md5": str, "prediction": str, "ts_seed": str}
+_pending_feedback: dict = {}
+_pf_lock = threading.Lock()
 
-        target = 1.0 if actual_is_xoai else 0.0
 
-        old_bias = w.get("bias", 0.5)
-        new_bias = alpha * target + (1 - alpha) * old_bias
-        w["bias"] = round(new_bias, 6)
+def _store_pending(user_id: int, msg_id: int, md5: str, pred: str, ts: str):
+    key = f"{user_id}_{msg_id}"
+    with _pf_lock:
+        _pending_feedback[key] = {"md5": md5, "prediction": pred, "ts_seed": ts}
 
-        save_weights(w)
 
-# ═══════════════════════════════════════════════════════════
-#  ĐỊNH DẠNG TIN NHẮN & KEYBOARDS
-# ═══════════════════════════════════════════════════════════
+def _pop_pending(user_id: int, msg_id: int) -> Optional[dict]:
+    key = f"{user_id}_{msg_id}"
+    with _pf_lock:
+        return _pending_feedback.pop(key, None)
 
-def format_result(res: dict) -> str:
-    pred  = res["prediction"]
-    emoji = "🍊" if pred == "XOÀI" else "🍎"
-    range_txt = "(3–10 điểm)" if pred == "XOÀI" else "(11–18 điểm)"
 
-    dice_str = " | ".join(
-        ("🍊" if r <= 10 else "🍎") + str(r)
-        for r in res["dice_rolls"]
-    )
+# ═══════════════════════════════════════════════════════════════════
+# 7. KEYBOARDS & FORMAT HELPERS
+# ═══════════════════════════════════════════════════════════════════
 
-    acc_txt = f"{res['accuracy']}% ({res['total_pred']} lượt)" if res["total_pred"] > 0 else "Chưa có dữ liệu"
-
-    return (
-        f"📊 *KẾT QUẢ PHÂN TÍCH MD5*\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"🔑 MD5: `{res['md5'][:16]}...{res['md5'][-8:]}`\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"🎯 Dự đoán: *{emoji} {pred}* {range_txt}\n"
-        f"📈 Độ tin cậy: *{res['confidence']}%*\n"
-        f"🔬 Entropy: `{res['entropy']} bits`\n"
-        f"⚙️ Method: Bitwise + EMA Adaptive\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"🎲 *Mô phỏng 10 lượt xúc xắc:*\n"
-        f"`{dice_str}`\n"
-        f"   🍊 Xoài: {res['xoai_count']}/10  |  🍎 Táo: {res['tao_count']}/10\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"📉 Độ chính xác hệ thống: {acc_txt}\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"_Kết quả có đúng không? Bấm bên dưới nhé!_"
-    )
-
-def feedback_keyboard(md5: str, prediction: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([[
-        InlineKeyboardButton("✅ ĐÚNG", callback_data=f"fb|correct|{prediction}|{md5[:16]}"),
-        InlineKeyboardButton("❌ SAI", callback_data=f"fb|wrong|{prediction}|{md5[:16]}"),
-    ]])
-
-def main_menu(user_id: int) -> InlineKeyboardMarkup:
-    is_admin = (user_id == ADMIN_ID)
+def main_menu_kb(user_id: int) -> InlineKeyboardMarkup:
     rows = [
-        [InlineKeyboardButton("📡 [1] Phân tích MD5", callback_data="menu|analyze")],
-        [InlineKeyboardButton("🔑 [2] Nhập Key",       callback_data="menu|enter_key")],
+        [InlineKeyboardButton("🔍 [1] Phân tích MD5", callback_data="m_analyze")],
+        [InlineKeyboardButton("🔑 [2] Nhập Key",       callback_data="m_enterkey")],
     ]
-    if is_admin:
-        rows.append([InlineKeyboardButton("🛠 [3] Tạo Key (Admin)",   callback_data="menu|create_key")])
-        rows.append([InlineKeyboardButton("👥 [4] Quản lý Users",     callback_data="menu|users")])
-        rows.append([InlineKeyboardButton("📋 [5] Danh sách Keys",    callback_data="menu|keys")])
-        rows.append([InlineKeyboardButton("🚫 [6] Thu hồi Key",       callback_data="menu|revoke")])
+    if user_id == ADMIN_ID:
+        rows.append([InlineKeyboardButton("⚙️ [3] Tạo Key  (Admin)", callback_data="m_createkey")])
     return InlineKeyboardMarkup(rows)
 
-def duration_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("1 Ngày",   callback_data="dur|1d"),
-            InlineKeyboardButton("3 Ngày",   callback_data="dur|3d"),
-            InlineKeyboardButton("7 Ngày",   callback_data="dur|7d"),
-        ],
-        [
-            InlineKeyboardButton("1 Tháng",  callback_data="dur|1m"),
-            InlineKeyboardButton("1 Năm",    callback_data="dur|1y"),
-            InlineKeyboardButton("Vĩnh viễn",callback_data="dur|inf"),
-        ],
-        [InlineKeyboardButton("❌ Hủy",      callback_data="dur|cancel")],
-    ])
 
-# ═══════════════════════════════════════════════════════════
-#  HANDLERS TELEGRAM
-# ═══════════════════════════════════════════════════════════
+def tier_kb() -> InlineKeyboardMarkup:
+    tiers = [
+        ("1️⃣  1 ngày",    "t_1d"),
+        ("2️⃣  3 ngày",    "t_3d"),
+        ("3️⃣  7 ngày",    "t_7d"),
+        ("4️⃣  1 tháng",   "t_1m"),
+        ("5️⃣  1 năm",     "t_1y"),
+        ("6️⃣  Vĩnh viễn", "t_inf"),
+    ]
+    rows = [[InlineKeyboardButton(lbl, callback_data=cb)] for lbl, cb in tiers]
+    rows.append([InlineKeyboardButton("🔙 Quay lại", callback_data="m_back")])
+    return InlineKeyboardMarkup(rows)
 
-async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    uid  = user.id
-    name = user.first_name or "bạn"
 
-    ok, reason = check_user_access(uid)
-    is_admin   = (uid == ADMIN_ID)
+def feedback_kb(user_id: int, msg_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton("✅ ĐÚNG", callback_data=f"fb_ok_{user_id}_{msg_id}"),
+        InlineKeyboardButton("❌ SAI",  callback_data=f"fb_no_{user_id}_{msg_id}"),
+    ]])
 
-    if is_admin:
-        role_txt = "👑 *Admin*"
-    elif ok:
-        role_txt = "✅ *Thành viên*"
-    else:
-        role_txt = "🔒 *Chưa kích hoạt*"
 
-    text = (
-        f"👋 Xin chào, *{name}*!\n\n"
-        f"🤖 *Bot Phân Tích MD5 — Bồ Kiết Vĩ Đại*\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"👤 Vai trò: {role_txt}\n"
-        f"🆔 ID: `{uid}`\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"Chọn chức năng bên dưới:"
+def fmt_expire(ts: Optional[float]) -> str:
+    if ts is None:
+        return "♾️ Vĩnh viễn"
+    return datetime.fromtimestamp(ts).strftime("%d/%m/%Y %H:%M:%S")
+
+
+def ascii_bar(pct: float, width: int = 18) -> str:
+    filled = int(pct / 100 * width)
+    return "█" * filled + "░" * (width - filled)
+
+
+WELCOME = (
+    "👋 *Chào mừng đến với BoKiet Dice Bot\\!*\n\n"
+    "🎲 Phân tích & dự đoán xúc xắc qua chuỗi MD5\n\n"
+    "🍊 *XOÀI* → Tổng 3 xúc xắc: 3–10 điểm\n"
+    "🍎 *TÁO*  → Tổng 3 xúc xắc: 11–18 điểm\n\n"
+    "👇 Chọn chức năng:"
+)
+
+TIER_LABELS = {
+    "t_1d": "1 ngày", "t_3d": "3 ngày", "t_7d": "7 ngày",
+    "t_1m": "1 tháng", "t_1y": "1 năm",  "t_inf": "Vĩnh viễn",
+}
+
+MD5_RE  = re.compile(r"^[0-9a-fA-F]{32}$")
+KEY_RE  = re.compile(r"^BoKietvidai-[0-9A-Fa-f]{16}$")
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 8. TELEGRAM HANDLERS
+# ═══════════════════════════════════════════════════════════════════
+
+async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
+    if update.effective_chat.type != "private":
+        return ConversationHandler.END
+    await update.message.reply_text(
+        WELCOME, parse_mode=ParseMode.MARKDOWN_V2,
+        reply_markup=main_menu_kb(update.effective_user.id),
     )
-    await update.message.reply_text(text, parse_mode="Markdown", reply_markup=main_menu(uid))
+    return ConversationHandler.END
 
-async def cmd_huongdan(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    text = (
-        "📖 *HƯỚNG DẪN SỬ DỤNG BOT*\n"
-        "━━━━━━━━━━━━━━━━━━━━\n\n"
-        "🔵 *Bước 1: Kích hoạt tài khoản*\n"
-        "   Nhấn `[2] Nhập Key` và nhập Key được Admin cấp.\n\n"
-        "🔵 *Bước 2: Phân tích MD5*\n"
-        "   Nhấn `[1] Phân tích MD5`, sau đó gửi chuỗi MD5 (32 ký tự hex).\n\n"
-        "🔵 *Bước 3: Phản hồi kết quả*\n"
-        "   Bấm `✅ ĐÚNG` hoặc `❌ SAI` để giúp bot học tập.\n\n"
-        "📌 *Lệnh hỗ trợ:*\n"
-        "• /start — Mở menu chính\n"
-        "• /huongdan — Xem hướng dẫn này"
-    )
-    await update.message.reply_text(text, parse_mode="Markdown")
 
-async def menu_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    uid   = query.from_user.id
-    parts = query.data.split("|")
-    action = parts[1]
+# ──────── Menu callbacks ────────
 
-    if action == "analyze":
-        ok, reason = check_user_access(uid)
-        if not ok:
-            msgs = {
-                "no_key":  "❌ Bạn chưa nhập Key. Dùng *[2] Nhập Key* để kích hoạt.",
-                "expired": "⏰ Key của bạn đã *hết hạn*. Liên hệ Admin để gia hạn.",
-                "revoked": "🚫 Key của bạn đã bị *thu hồi*. Liên hệ Admin.",
-            }
-            await query.edit_message_text(msgs.get(reason, "❌ Không có quyền truy cập."), parse_mode="Markdown")
-            return
-        ctx.user_data["state"] = "wait_md5"
-        await query.edit_message_text(
-            "📡 *Phân tích MD5*\n\nHãy gửi chuỗi MD5 cần phân tích (32 ký tự hex):\n\nGõ /start để quay lại.",
-            parse_mode="Markdown"
-        )
+async def cb_analyze(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
+    q = update.callback_query
+    await q.answer()
+    uid = q.from_user.id
 
-    elif action == "enter_key":
-        ctx.user_data["state"] = "wait_key"
-        await query.edit_message_text(
-            "🔑 *Nhập Key kích hoạt*\n\nGửi Key bạn nhận được từ Admin:\n_(Dạng: `BoKietvidai-XXXXXXXXXXXXXXXX`)_\n\nGõ /start để quay lại.",
-            parse_mode="Markdown"
-        )
+    access = db_check_access(uid)
+    if not access["ok"]:
+        note = ("🔒 Chưa kích hoạt Key\\!\nChọn *\\[2\\] Nhập Key* trước\\."
+                if access["msg"] == "no_key"
+                else "⏰ Key đã hết hạn\\! Vui lòng nhập Key mới\\.")
+        await q.edit_message_text(note, parse_mode=ParseMode.MARKDOWN_V2,
+                                  reply_markup=main_menu_kb(uid))
+        return ConversationHandler.END
 
-    elif action == "create_key":
-        if uid != ADMIN_ID:
-            await query.answer("⛔ Chỉ Admin mới dùng được!", show_alert=True)
-            return
-        await query.edit_message_text("🛠 *Tạo Key mới*\n\nChọn thời hạn:", parse_mode="Markdown", reply_markup=duration_keyboard())
-
-    elif action == "users":
-        if uid != ADMIN_ID:
-            return
-        users_list = get_all_active_users()
-        txt = "👥 *Danh sách Users*\n\nChưa có user nào." if not users_list else \
-              "👥 *Danh sách Users*\n━━━━━━━━━━━━━━\n" + "\n".join([f"🆔 `{u['uid']}` — {u['status']}" for u in users_list])
-        await query.edit_message_text(txt, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Menu", callback_data="menu|back")]]))
-
-    elif action == "keys":
-        if uid != ADMIN_ID:
-            return
-        keys_list = get_all_keys()
-        txt = "📋 *Danh sách Keys*\n\nChưa tạo key nào." if not keys_list else \
-              "📋 *Danh sách Keys*\n━━━━━━━━━━━━━━\n" + "\n".join([f"{k['active']} `{k['key']}` | HH: {k['expiry']}" for k in keys_list[-15:]])
-        await query.edit_message_text(txt, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Menu", callback_data="menu|back")]]))
-
-    elif action == "revoke":
-        if uid != ADMIN_ID:
-            return
-        ctx.user_data["state"] = "wait_revoke"
-        await query.edit_message_text("🚫 *Thu hồi Key*\n\nGửi Key đầy đủ cần thu hồi:\n\nGõ /start để hủy.", parse_mode="Markdown")
-
-    elif action == "back":
-        await query.edit_message_text("📋 Chọn chức năng:", reply_markup=main_menu(uid))
-
-async def duration_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    uid  = query.from_user.id
-    code = query.data.split("|")[1]
-
+    expire_note = ""
     if uid != ADMIN_ID:
-        return
+        info = db_get_user_key_info(uid)
+        if info:
+            expire_note = f"\n⏳ Key hết hạn: `{fmt_expire(info['expires_at'])}`\n"
 
-    if code == "cancel":
-        await query.edit_message_text("❌ Đã hủy tạo key.", reply_markup=main_menu(uid))
-        return
+    await q.edit_message_text(
+        f"🔍 *Phân tích MD5*{escape_md(expire_note)}\n\n"
+        "📋 Gửi chuỗi MD5 \\(32 ký tự hex\\):\n"
+        "_Ví dụ: `d41d8cd98f00b204e9800998ecf8427e`_",
+        parse_mode=ParseMode.MARKDOWN_V2,
+    )
+    return S_MD5
 
-    new_key = create_key(code)
-    label   = DURATION_LABEL.get(code, code)
-    await query.edit_message_text(
-        f"✅ *Key mới đã được tạo!*\n\n🔑 Key:\n`{new_key}`\n\n⏱ Thời hạn: *{label}*",
-        parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Về menu", callback_data="menu|back")]])
+
+async def cb_enterkey(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
+    q = update.callback_query
+    await q.answer()
+    await q.edit_message_text(
+        "🔑 *Nhập Key kích hoạt*\n\n"
+        "Dán chuỗi Key vào đây:\n"
+        "_Định dạng: `BoKietvidai-XXXXXXXXXXXXXXXX`_",
+        parse_mode=ParseMode.MARKDOWN_V2,
+    )
+    return S_KEY
+
+
+async def cb_createkey(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
+    q = update.callback_query
+    await q.answer()
+    if q.from_user.id != ADMIN_ID:
+        await q.edit_message_text("🚫 Không có quyền truy cập\\!",
+                                  parse_mode=ParseMode.MARKDOWN_V2,
+                                  reply_markup=main_menu_kb(q.from_user.id))
+        return ConversationHandler.END
+    await q.edit_message_text(
+        "⚙️ *Tạo Key mới*\n\nChọn thời hạn:",
+        parse_mode=ParseMode.MARKDOWN_V2, reply_markup=tier_kb(),
+    )
+    return S_TIER
+
+
+async def cb_back(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
+    q = update.callback_query
+    await q.answer()
+    await q.edit_message_text(
+        WELCOME, parse_mode=ParseMode.MARKDOWN_V2,
+        reply_markup=main_menu_kb(q.from_user.id),
+    )
+    return ConversationHandler.END
+
+
+async def cb_tier(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
+    q = update.callback_query
+    await q.answer()
+    if q.from_user.id != ADMIN_ID:
+        await q.edit_message_text("🚫 Không có quyền\\!", parse_mode=ParseMode.MARKDOWN_V2)
+        return ConversationHandler.END
+
+    label    = TIER_LABELS[q.data]
+    key_code = db_create_key(label)
+    expire_info = (
+        f"`{label}` \\(tính từ lúc User kích hoạt\\)"
+        if label != "Vĩnh viễn" else "♾️ Vĩnh viễn"
     )
 
-async def feedback_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    cb_key = "fb_done_" + query.data[:40]
-    if ctx.user_data.get(cb_key):
-        await query.answer("Bạn đã phản hồi rồi!", show_alert=True)
-        return
-    ctx.user_data[cb_key] = True
-
-    parts      = query.data.split("|")
-    verdict    = parts[1]
-    prediction = parts[2]
-    is_correct = (verdict == "correct")
-
-    update_weights(prediction, is_correct)
-
-    with _lock:
-        fb = load_feedback()
-        fb.append({
-            "ts": datetime.utcnow().isoformat(),
-            "user_id": query.from_user.id,
-            "prediction": prediction,
-            "correct": is_correct,
-        })
-        save_feedback(fb)
-
-    w   = load_weights()
-    acc = round(w["correct"] / w["total"] * 100, 1) if w["total"] > 0 else 0.0
-    result_txt = "✅ Chính xác!" if is_correct else "❌ Chưa đúng!"
-
-    new_text = (
-        f"{query.message.text}\n━━━━━━━━━━━━━━━━━━━━\n"
-        f"📝 *Phản hồi:* {result_txt}\n"
-        f"📊 Tỷ lệ đúng hệ thống: *{acc}%* ({w['total']} lượt)"
+    await q.edit_message_text(
+        f"✅ *Key đã tạo thành công\\!*\n\n"
+        f"🔑 Key:\n`{escape_md(key_code)}`\n\n"
+        f"⏳ Thời hạn: {expire_info}\n\n"
+        f"📋 _Copy key trên gửi cho người dùng\\._",
+        parse_mode=ParseMode.MARKDOWN_V2,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("➕ Tạo Key khác", callback_data="m_createkey")],
+            [InlineKeyboardButton("🏠 Menu chính",   callback_data="m_back")],
+        ]),
     )
-    try:
-        await query.edit_message_text(new_text, parse_mode="Markdown")
-    except Exception:
-        pass
+    return ConversationHandler.END
 
-async def message_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    uid   = update.effective_user.id
-    text  = (update.message.text or "").strip()
-    state = ctx.user_data.get("state")
 
-    if state == "wait_md5":
-        if len(text) != 32 or not all(c in "0123456789abcdefABCDEF" for c in text):
-            await update.message.reply_text("⚠️ MD5 không hợp lệ! Cần đúng 32 ký tự Hex.", parse_mode="Markdown")
-            return
+# ──────── Nhận MD5 ────────
 
-        res = predict(text.lower())
-        ctx.user_data["state"] = None
+async def handle_md5(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
+    uid  = update.effective_user.id
+    text = (update.message.text or "").strip()
+
+    if not MD5_RE.match(text):
         await update.message.reply_text(
-            format_result(res),
-            parse_mode="Markdown",
-            reply_markup=feedback_keyboard(text.lower(), res["prediction"])
+            "⚠️ *MD5 không hợp lệ\\!*\n\n"
+            "Phải gồm đúng *32 ký tự Hex* \\(0\\-9, a\\-f\\)\\.\nGửi lại:",
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
+        return S_MD5  # Chờ nhập lại
+
+    # Re-check quyền (key có thể hết hạn giữa chừng)
+    access = db_check_access(uid)
+    if not access["ok"]:
+        await update.message.reply_text(
+            "⏰ Key vừa hết hạn\\! Vui lòng nhập Key mới\\.",
+            parse_mode=ParseMode.MARKDOWN_V2,
+            reply_markup=main_menu_kb(uid),
+        )
+        return ConversationHandler.END
+
+    proc_msg = await update.message.reply_text("⏳ Đang phân tích\\.\\.\\.",
+                                               parse_mode=ParseMode.MARKDOWN_V2)
+
+    r = analyze_md5(text)
+
+    bar = ascii_bar(r["confidence"])
+    pred_escaped = escape_md(r["prediction"])
+    md5_escaped  = escape_md(text.lower())
+    ts_escaped   = escape_md(r["ts_seed"])
+    seed_escaped = escape_md(r["seed_preview"])
+    bias_sign    = "\\+" if r["bias"] >= 0 else ""
+
+    result_text = (
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "🎲 *KẾT QUẢ PHÂN TÍCH XÚC XẮC*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"📥 MD5: `{md5_escaped}`\n"
+        f"⏱ Seed TS: `{ts_escaped}`\n"
+        f"🔐 Seed Hash: `{seed_escaped}`\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"*DỰ ĐOÁN:  {pred_escaped}*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"📊 Độ tin cậy:\n"
+        f"`\\[{escape_md(bar)}\\]`\n"
+        f"     *{r['confidence']}%*\n\n"
+        f"📈 Shannon Entropy: `{r['entropy']} bits`\n"
+        f"⚡ Bitwise Score: `{r['bit_score']}%`\n"
+        f"🧠 Adaptive Bias: `{bias_sign}{r['bias']}%`\n\n"
+        f"🍊 Mẫu XOÀI \\(3–10\\): `{r['xoai_count']}/10`\n"
+        f"🍎 Mẫu TÁO  \\(11–18\\): `{r['tao_count']}/10`\n\n"
+        "👇 *Kết quả có đúng không?*"
+    )
+
+    await proc_msg.delete()
+    sent = await update.message.reply_text(
+        result_text,
+        parse_mode=ParseMode.MARKDOWN_V2,
+        reply_markup=feedback_kb(uid, update.message.message_id),
+    )
+
+    # Lưu pending feedback (dùng message_id của tin người dùng gửi làm key duy nhất)
+    _store_pending(uid, update.message.message_id, text.lower(), r["prediction"], r["ts_seed"])
+
+    return ConversationHandler.END
+
+
+# ──────── Nhận Key ────────
+
+async def handle_key(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
+    uid  = update.effective_user.id
+    text = (update.message.text or "").strip()
+
+    if not KEY_RE.match(text):
+        await update.message.reply_text(
+            "⚠️ *Định dạng Key không đúng\\!*\n\n"
+            "Key phải có dạng: `BoKietvidai\\-XXXXXXXXXXXXXXXX`\nGửi lại:",
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
+        return S_KEY
+
+    result = db_activate_key(text, uid)
+    if result["ok"]:
+        exp = fmt_expire(result.get("expires_at"))
+        await update.message.reply_text(
+            f"✅ *Kích hoạt thành công\\!*\n\n"
+            f"🔑 Key: `{escape_md(text)}`\n"
+            f"⏳ Hết hạn: `{escape_md(exp)}`\n\n"
+            f"🎉 Bạn có thể dùng *Phân tích MD5* ngay\\!",
+            parse_mode=ParseMode.MARKDOWN_V2,
+            reply_markup=main_menu_kb(uid),
+        )
+        await _notify_admin(ctx, update.effective_user, text, exp)
+    else:
+        await update.message.reply_text(
+            f"{escape_md(result['msg'])}\n\nLiên hệ Admin để được hỗ trợ\\.",
+            parse_mode=ParseMode.MARKDOWN_V2,
+            reply_markup=main_menu_kb(uid),
+        )
+    return ConversationHandler.END
+
+
+# ──────── Feedback callbacks ────────
+
+async def cb_feedback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    q   = update.callback_query
+    uid = q.from_user.id
+    await q.answer()
+
+    # Pattern: fb_ok_{user_id}_{msg_id}  hoặc  fb_no_{user_id}_{msg_id}
+    parts = q.data.split("_")
+    # parts: ['fb', 'ok'/'no', user_id, msg_id]
+    if len(parts) != 4:
+        return
+
+    verdict   = parts[1]           # 'ok' hoặc 'no'
+    owner_uid = int(parts[2])
+    msg_id    = int(parts[3])
+
+    # Chỉ chủ nhân được phản hồi
+    if uid != owner_uid:
+        await q.answer("🚫 Đây không phải phiên phân tích của bạn!", show_alert=True)
+        return
+
+    ctx_data = _pop_pending(uid, msg_id)
+    if ctx_data is None:
+        await q.edit_message_reply_markup(reply_markup=None)
+        return
+
+    is_correct = (verdict == "ok")
+    db_save_feedback(
+        user_id=uid,
+        md5_input=ctx_data["md5"],
+        prediction=ctx_data["prediction"],
+        is_correct=is_correct,
+        ts_seed=ctx_data["ts_seed"],
+    )
+
+    icon = "✅" if is_correct else "❌"
+    fb_text = "ĐÚNG — Hệ thống đã ghi nhận, cảm ơn\\!" if is_correct else "SAI — Hệ thống đã học từ phản hồi này\\!"
+
+    # Chỉnh sửa message cũ: xóa nút, thêm dòng phản hồi
+    old_text = q.message.text or ""
+    new_text = old_text.rsplit("👇", 1)[0].strip()
+    await q.edit_message_text(
+        new_text + f"\n\n{icon} *Phản hồi:* {fb_text}",
+        parse_mode=ParseMode.MARKDOWN_V2,
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton("🔄 Phân tích tiếp", callback_data="m_analyze"),
+            InlineKeyboardButton("🏠 Menu",            callback_data="m_back"),
+        ]]),
+    )
+
+
+# ──────── Admin notify ────────
+
+async def _notify_admin(ctx: ContextTypes.DEFAULT_TYPE, user, key: str, exp: str) -> None:
+    try:
+        uname = f"@{user.username}" if user.username else "_\\(không có username\\)_"
+        await ctx.bot.send_message(
+            chat_id=ADMIN_ID,
+            text=(
+                "🔔 *Thông báo kích hoạt Key*\n\n"
+                f"👤 User: {escape_md(user.full_name)} \\({uname}\\)\n"
+                f"🆔 ID: `{user.id}`\n"
+                f"🔑 Key: `{escape_md(key)}`\n"
+                f"⏳ Hết hạn: `{escape_md(exp)}`\n"
+                f"🕐 Lúc: `{escape_md(datetime.now().strftime('%d/%m/%Y %H:%M:%S'))}`"
+            ),
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
+    except Exception as e:
+        logger.warning("Không gửi được thông báo Admin: %s", e)
+
+
+# ──────── Admin command ────────
+
+async def cmd_admin(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != ADMIN_ID:
+        await update.message.reply_text("🚫 Không có quyền\\!", parse_mode=ParseMode.MARKDOWN_V2)
+        return
+    with _get_conn() as conn:
+        total_keys   = conn.execute("SELECT COUNT(*) FROM keys").fetchone()[0]
+        activated    = conn.execute("SELECT COUNT(*) FROM keys WHERE activated_by IS NOT NULL").fetchone()[0]
+        total_users  = conn.execute("SELECT COUNT(*) FROM users WHERE active_key IS NOT NULL").fetchone()[0]
+        now          = time.time()
+        active_users = conn.execute(
+            "SELECT COUNT(*) FROM users WHERE active_key IS NOT NULL"
+            " AND (key_expires_at IS NULL OR key_expires_at > ?)", (now,)
+        ).fetchone()[0]
+        total_fb  = conn.execute("SELECT COUNT(*) FROM feedback").fetchone()[0]
+        correct   = conn.execute("SELECT COUNT(*) FROM feedback WHERE is_correct=1").fetchone()[0]
+
+    acc = round(correct / total_fb * 100, 1) if total_fb else 0.0
+    await update.message.reply_text(
+        "📊 *Thống kê hệ thống*\n\n"
+        f"🔑 Tổng Key đã tạo:     `{total_keys}`\n"
+        f"✅ Key đã kích hoạt:    `{activated}`\n"
+        f"👥 Tổng User có Key:    `{total_users}`\n"
+        f"🟢 User đang hoạt động: `{active_users}`\n\n"
+        f"📈 Tổng phản hồi:       `{total_fb}`\n"
+        f"🎯 Tỉ lệ dự đoán đúng: `{acc}%`\n\n"
+        f"🕐 Cập nhật: `{escape_md(datetime.now().strftime('%d/%m/%Y %H:%M:%S'))}`",
+        parse_mode=ParseMode.MARKDOWN_V2,
+        reply_markup=main_menu_kb(ADMIN_ID),
+    )
+
+
+# ──────── Fallback ────────
+
+async def handle_unexpected(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_chat and update.effective_chat.type == "private":
+        await update.message.reply_text(
+            "Dùng lệnh /start để mở menu\\.",
+            parse_mode=ParseMode.MARKDOWN_V2,
+            reply_markup=main_menu_kb(update.effective_user.id),
         )
 
-    elif state == "wait_key":
-        ok, msg = activate_key(uid, text)
-        ctx.user_data["state"] = None
-        await update.message.reply_text(msg, parse_mode="Markdown", reply_markup=main_menu(uid))
 
-    elif state == "wait_revoke":
-        if uid != ADMIN_ID:
-            ctx.user_data["state"] = None
-            return
-        ok, msg = revoke_key(text)
-        ctx.user_data["state"] = None
-        await update.message.reply_text(msg, parse_mode="Markdown", reply_markup=main_menu(uid))
+# ──────── MarkdownV2 escape helper ────────
 
-    else:
-        await update.message.reply_text("💡 Dùng /start để mở menu.", reply_markup=main_menu(uid))
+_MD2_SPECIAL = r"\_*[]()~`>#+-=|{}.!"
 
-# ═══════════════════════════════════════════════════════════
-#  FLASK WEB SERVER & RUNNER (FIX LỖI TIMEDOUT)
-# ═══════════════════════════════════════════════════════════
+def escape_md(text: str) -> str:
+    """Escape ký tự đặc biệt MarkdownV2 của Telegram."""
+    for ch in r"\_*[]()~`>#+-=|{}.!":
+        text = text.replace(ch, f"\\{ch}")
+    return text
 
-flask_app = Flask(__name__)
-_telegram_app: Optional[Application] = None
-_loop: Optional[asyncio.AbstractEventLoop] = None
 
-@flask_app.route("/", methods=["GET"])
-def index():
-    return Response("<h2>🤖 Bot Phân Tích MD5 — Bồ Kiết Vĩ Đại</h2><p>Status: ONLINE</p>", status=200)
+# ═══════════════════════════════════════════════════════════════════
+# 9. BOT SETUP & DAEMON THREAD
+# ═══════════════════════════════════════════════════════════════════
 
-@flask_app.route("/health", methods=["GET"])
-def health():
-    return Response('{"status":"ok"}', status=200, mimetype="application/json")
+def _build_app() -> Application:
+    """Xây dựng Application Telegram."""
+    tg_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
-@flask_app.route(WEBHOOK_PATH, methods=["POST"])
-def webhook():
-    if _telegram_app is None or _loop is None:
-        return Response("Not ready", status=503)
-    
-    data = request.get_json(force=True)
-    update = Update.de_json(data, _telegram_app.bot)
-    
-    asyncio.run_coroutine_threadsafe(_telegram_app.process_update(update), _loop)
-    return Response("ok", status=200)
-
-def build_application() -> Application:
-    # Tăng thời gian chờ (Timeout 60s) để fix triệt để lỗi TimedOut trên Render
-    t_request = HTTPXRequest(
-        connect_timeout=60.0,
-        read_timeout=60.0,
-        write_timeout=60.0,
-        pool_timeout=60.0
+    conv = ConversationHandler(
+        entry_points=[
+            CommandHandler("start",  cmd_start),
+            CallbackQueryHandler(cb_analyze,   pattern="^m_analyze$"),
+            CallbackQueryHandler(cb_enterkey,  pattern="^m_enterkey$"),
+            CallbackQueryHandler(cb_createkey, pattern="^m_createkey$"),
+            CallbackQueryHandler(cb_back,      pattern="^m_back$"),
+            CallbackQueryHandler(cb_tier,      pattern="^t_"),
+        ],
+        states={
+            S_MD5: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_md5),
+                CallbackQueryHandler(cb_analyze,   pattern="^m_analyze$"),
+                CallbackQueryHandler(cb_enterkey,  pattern="^m_enterkey$"),
+                CallbackQueryHandler(cb_createkey, pattern="^m_createkey$"),
+                CallbackQueryHandler(cb_back,      pattern="^m_back$"),
+            ],
+            S_KEY: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_key),
+                CallbackQueryHandler(cb_back, pattern="^m_back$"),
+            ],
+            S_TIER: [
+                CallbackQueryHandler(cb_tier, pattern="^t_"),
+                CallbackQueryHandler(cb_back, pattern="^m_back$"),
+            ],
+        },
+        fallbacks=[
+            CommandHandler("start", cmd_start),
+            CommandHandler("admin", cmd_admin),
+        ],
+        per_message=False,
     )
 
-    app = (
-        Application.builder()
-        .token(BOT_TOKEN)
-        .request(t_request)
-        .updater(None)
-        .build()
+    tg_app.add_handler(conv)
+    tg_app.add_handler(CallbackQueryHandler(cb_feedback, pattern="^fb_"))
+    tg_app.add_handler(CommandHandler("admin", cmd_admin))
+    tg_app.add_handler(
+        MessageHandler(filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE, handle_unexpected)
     )
 
-    app.add_handler(CommandHandler("start",    cmd_start))
-    app.add_handler(CommandHandler("huongdan", cmd_huongdan))
+    return tg_app
 
-    app.add_handler(CallbackQueryHandler(menu_callback,     pattern=r"^menu\|"))
-    app.add_handler(CallbackQueryHandler(duration_callback, pattern=r"^dur\|"))
-    app.add_handler(CallbackQueryHandler(feedback_callback, pattern=r"^fb\|"))
 
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
-    return app
-
-async def setup_webhook(app: Application):
-    await app.initialize()
-    if RENDER_URL:
-        # Thử lại 3 lần nếu thiết lập Webhook bị gián đoạn mạng
-        for attempt in range(3):
-            try:
-                await app.bot.set_webhook(
-                    url=WEBHOOK_URL,
-                    allowed_updates=["message", "callback_query"],
-                    drop_pending_updates=True,
-                )
-                logger.info(f"✅ Webhook set thành công: {WEBHOOK_URL}")
-                break
-            except Exception as e:
-                logger.warning(f"⚠️ Thử thiết lập Webhook thất bại ({attempt+1}/3): {e}")
-                await asyncio.sleep(3)
-    
-    await app.start()
-    try:
-        await app.bot.set_my_commands([
-            BotCommand("start",    "Mở menu chính"),
-            BotCommand("huongdan", "Hướng dẫn sử dụng"),
-        ])
-    except Exception as e:
-        logger.warning(f"Không thể đặt menu lệnh: {e}")
-
-def run_loop(loop, app):
+def _run_bot_in_thread() -> None:
+    """
+    Chạy Bot Telegram trong event loop riêng biệt.
+    nest_asyncio cho phép asyncio chạy bên trong thread có loop sẵn.
+    """
+    nest_asyncio.apply()
+    loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    loop.run_until_complete(setup_webhook(app))
-    loop.run_forever()
 
-def main():
-    global _telegram_app, _loop
+    tg_app = _build_app()
 
-    _telegram_app = build_application()
-    _loop = asyncio.new_event_loop()
+    async def _main():
+        await tg_app.bot.set_my_commands([
+            BotCommand("start", "Mở menu chính"),
+            BotCommand("admin", "Thống kê (Admin only)"),
+        ])
+        logger.info("🤖 Telegram Bot đã kết nối! ADMIN_ID=%d", ADMIN_ID)
+        await tg_app.initialize()
+        await tg_app.start()
+        await tg_app.updater.start_polling(
+            allowed_updates=Update.ALL_TYPES,
+            drop_pending_updates=True,
+        )
+        # Chạy mãi cho đến khi thread bị dừng
+        while True:
+            await asyncio.sleep(3600)
 
-    t = threading.Thread(target=run_loop, args=(_loop, _telegram_app), daemon=True)
-    t.start()
+    try:
+        loop.run_until_complete(_main())
+    except Exception as e:
+        logger.error("Bot thread lỗi: %s", e, exc_info=True)
+    finally:
+        loop.close()
 
-    logger.info(f"🚀 Flask đang chạy trên port {PORT}")
-    flask_app.run(host="0.0.0.0", port=PORT, debug=False, use_reloader=False)
+
+# ═══════════════════════════════════════════════════════════════════
+# 10. ENTRYPOINT
+# ═══════════════════════════════════════════════════════════════════
+
+def _validate() -> bool:
+    ok = True
+    if "YOUR_BOT_TOKEN" in TELEGRAM_BOT_TOKEN:
+        logger.error("❌ Chưa điền TELEGRAM_BOT_TOKEN!")
+        ok = False
+    if ADMIN_ID == 123456789:
+        logger.error("❌ Chưa điền ADMIN_ID hợp lệ!")
+        ok = False
+    return ok
+
+
+# Khởi tạo DB ngay khi module được import (Gunicorn cần điều này)
+db_init()
+
+# Khởi động Bot thread ngay khi module load (Gunicorn worker init)
+_bot_thread = threading.Thread(target=_run_bot_in_thread, daemon=True, name="TelegramBot")
+_bot_thread.start()
+logger.info("🚀 Bot thread đã được khởi động (daemon=True)")
+
 
 if __name__ == "__main__":
-    main()
+    # Chạy local: python main.py
+    if not _validate():
+        sys.exit(1)
+    port = int(os.environ.get("PORT", 5000))
+    logger.info("🌐 Flask đang lắng nghe cổng %d ...", port)
+    # Không dùng debug=True vì sẽ tạo thêm 1 process con → bot thread chạy 2 lần
+    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
